@@ -1,35 +1,72 @@
 #include "../nvme.h"
-
+#include "../zns/zns.h"
 void set_latency(FemuCtrl *n)
 {
-    if (n->flash_type == TLC) {
-        n->upg_rd_lat_ns = TLC_UPPER_PAGE_READ_LATENCY_NS;
-        n->cpg_rd_lat_ns = TLC_CENTER_PAGE_READ_LATENCY_NS;
-        n->lpg_rd_lat_ns = TLC_LOWER_PAGE_READ_LATENCY_NS;
-        n->upg_wr_lat_ns = TLC_UPPER_PAGE_WRITE_LATENCY_NS;
-        n->cpg_wr_lat_ns = TLC_CENTER_PAGE_WRITE_LATENCY_NS;
-        n->lpg_wr_lat_ns = TLC_LOWER_PAGE_WRITE_LATENCY_NS;
-        n->blk_er_lat_ns = TLC_BLOCK_ERASE_LATENCY_NS;
-        n->chnl_pg_xfer_lat_ns = TLC_CHNL_PAGE_TRANSFER_LATENCY_NS;
-    } else if (n->flash_type == QLC) {
-        n->upg_rd_lat_ns  = QLC_UPPER_PAGE_READ_LATENCY_NS;
-        n->cupg_rd_lat_ns = QLC_CENTER_UPPER_PAGE_READ_LATENCY_NS;
-        n->clpg_rd_lat_ns = QLC_CENTER_LOWER_PAGE_READ_LATENCY_NS;
-        n->lpg_rd_lat_ns  = QLC_LOWER_PAGE_READ_LATENCY_NS;
-        n->upg_wr_lat_ns  = QLC_UPPER_PAGE_WRITE_LATENCY_NS;
-        n->cupg_wr_lat_ns = QLC_CENTER_UPPER_PAGE_WRITE_LATENCY_NS;
-        n->clpg_wr_lat_ns = QLC_CENTER_LOWER_PAGE_WRITE_LATENCY_NS;
-        n->lpg_wr_lat_ns  = QLC_LOWER_PAGE_WRITE_LATENCY_NS;
-        n->blk_er_lat_ns  = QLC_BLOCK_ERASE_LATENCY_NS;
-        n->chnl_pg_xfer_lat_ns = QLC_CHNL_PAGE_TRANSFER_LATENCY_NS;
-    } else if (n->flash_type == MLC) {
-        n->upg_rd_lat_ns = MLC_UPPER_PAGE_READ_LATENCY_NS;
-        n->lpg_rd_lat_ns = MLC_LOWER_PAGE_READ_LATENCY_NS;
-        n->upg_wr_lat_ns = MLC_UPPER_PAGE_WRITE_LATENCY_NS;
-        n->lpg_wr_lat_ns = MLC_LOWER_PAGE_WRITE_LATENCY_NS;
-        n->blk_er_lat_ns = MLC_BLOCK_ERASE_LATENCY_NS;
-        n->chnl_pg_xfer_lat_ns = MLC_CHNL_PAGE_TRANSFER_LATENCY_NS;
+    // HH
+    //if (n->flash_type == TLC) {
+    NvmeZone *zone;
+    zone = n->zone_array;
+
+    for(int i=0; i < n->num_zones; i++, zone++)
+    {
+        if (n->zone_array->d.zone_flash_type == TLC) {
+            n->zone_array->d.upg_rd_lat_ns = TLC_UPPER_PAGE_READ_LATENCY_NS;
+            n->zone_array->d.cpg_rd_lat_ns = TLC_CENTER_PAGE_READ_LATENCY_NS;
+            n->zone_array->d.lpg_rd_lat_ns = TLC_LOWER_PAGE_READ_LATENCY_NS;
+            n->zone_array->d.upg_wr_lat_ns = TLC_UPPER_PAGE_WRITE_LATENCY_NS;
+            n->zone_array->d.cpg_wr_lat_ns = TLC_CENTER_PAGE_WRITE_LATENCY_NS;
+            n->zone_array->d.lpg_wr_lat_ns = TLC_LOWER_PAGE_WRITE_LATENCY_NS;
+            n->zone_array->d.blk_er_lat_ns = TLC_BLOCK_ERASE_LATENCY_NS;
+            n->zone_array->d.chnl_pg_xfer_lat_ns = TLC_CHNL_PAGE_TRANSFER_LATENCY_NS;
+        } else if (n->zone_array->d.zone_flash_type == QLC) {
+            n->zone_array->d.upg_rd_lat_ns  = QLC_UPPER_PAGE_READ_LATENCY_NS;
+            n->zone_array->d.cupg_rd_lat_ns = QLC_CENTER_UPPER_PAGE_READ_LATENCY_NS;
+            n->zone_array->d.clpg_rd_lat_ns = QLC_CENTER_LOWER_PAGE_READ_LATENCY_NS;
+            n->zone_array->d.lpg_rd_lat_ns  = QLC_LOWER_PAGE_READ_LATENCY_NS;
+            n->zone_array->d.upg_wr_lat_ns  = QLC_UPPER_PAGE_WRITE_LATENCY_NS;
+            n->zone_array->d.cupg_wr_lat_ns = QLC_CENTER_UPPER_PAGE_WRITE_LATENCY_NS;
+            n->zone_array->d.clpg_wr_lat_ns = QLC_CENTER_LOWER_PAGE_WRITE_LATENCY_NS;
+            n->zone_array->d.lpg_wr_lat_ns  = QLC_LOWER_PAGE_WRITE_LATENCY_NS;
+            n->zone_array->d.blk_er_lat_ns  = QLC_BLOCK_ERASE_LATENCY_NS;
+            n->zone_array->d.chnl_pg_xfer_lat_ns = QLC_CHNL_PAGE_TRANSFER_LATENCY_NS;
+        } else if (n->zone_array->d.zone_flash_type == MLC) {
+            n->zone_array->d.upg_rd_lat_ns = MLC_UPPER_PAGE_READ_LATENCY_NS;
+            n->zone_array->d.lpg_rd_lat_ns = MLC_LOWER_PAGE_READ_LATENCY_NS;
+            n->zone_array->d.upg_wr_lat_ns = MLC_UPPER_PAGE_WRITE_LATENCY_NS;
+            n->zone_array->d.lpg_wr_lat_ns = MLC_LOWER_PAGE_WRITE_LATENCY_NS;
+            n->zone_array->d.blk_er_lat_ns = MLC_BLOCK_ERASE_LATENCY_NS;
+            n->zone_array->d.chnl_pg_xfer_lat_ns = MLC_CHNL_PAGE_TRANSFER_LATENCY_NS;
+        }
     }
+
+    // if (n->zone_array->d.zone_flash_type == TLC) {
+    //     n->upg_rd_lat_ns = TLC_UPPER_PAGE_READ_LATENCY_NS;
+    //     n->cpg_rd_lat_ns = TLC_CENTER_PAGE_READ_LATENCY_NS;
+    //     n->lpg_rd_lat_ns = TLC_LOWER_PAGE_READ_LATENCY_NS;
+    //     n->upg_wr_lat_ns = TLC_UPPER_PAGE_WRITE_LATENCY_NS;
+    //     n->cpg_wr_lat_ns = TLC_CENTER_PAGE_WRITE_LATENCY_NS;
+    //     n->lpg_wr_lat_ns = TLC_LOWER_PAGE_WRITE_LATENCY_NS;
+    //     n->blk_er_lat_ns = TLC_BLOCK_ERASE_LATENCY_NS;
+    //     n->chnl_pg_xfer_lat_ns = TLC_CHNL_PAGE_TRANSFER_LATENCY_NS;
+    // } else if (n->zone_array->d.zone_flash_type == QLC) {
+    //     n->upg_rd_lat_ns  = QLC_UPPER_PAGE_READ_LATENCY_NS;
+    //     n->cupg_rd_lat_ns = QLC_CENTER_UPPER_PAGE_READ_LATENCY_NS;
+    //     n->clpg_rd_lat_ns = QLC_CENTER_LOWER_PAGE_READ_LATENCY_NS;
+    //     n->lpg_rd_lat_ns  = QLC_LOWER_PAGE_READ_LATENCY_NS;
+    //     n->upg_wr_lat_ns  = QLC_UPPER_PAGE_WRITE_LATENCY_NS;
+    //     n->cupg_wr_lat_ns = QLC_CENTER_UPPER_PAGE_WRITE_LATENCY_NS;
+    //     n->clpg_wr_lat_ns = QLC_CENTER_LOWER_PAGE_WRITE_LATENCY_NS;
+    //     n->lpg_wr_lat_ns  = QLC_LOWER_PAGE_WRITE_LATENCY_NS;
+    //     n->blk_er_lat_ns  = QLC_BLOCK_ERASE_LATENCY_NS;
+    //     n->chnl_pg_xfer_lat_ns = QLC_CHNL_PAGE_TRANSFER_LATENCY_NS;
+    // } else if (n->zone_array->d.zone_flash_type == MLC) {
+    //     n->upg_rd_lat_ns = MLC_UPPER_PAGE_READ_LATENCY_NS;
+    //     n->lpg_rd_lat_ns = MLC_LOWER_PAGE_READ_LATENCY_NS;
+    //     n->upg_wr_lat_ns = MLC_UPPER_PAGE_WRITE_LATENCY_NS;
+    //     n->lpg_wr_lat_ns = MLC_LOWER_PAGE_WRITE_LATENCY_NS;
+    //     n->blk_er_lat_ns = MLC_BLOCK_ERASE_LATENCY_NS;
+    //     n->chnl_pg_xfer_lat_ns = MLC_CHNL_PAGE_TRANSFER_LATENCY_NS;
+    // }
 }
 
 /*
@@ -78,14 +115,16 @@ int64_t advance_chip_timestamp(FemuCtrl *n, int lunid, uint64_t now, int opcode,
     switch (opcode) {
     case NVME_CMD_OC_READ:
     case NVME_CMD_READ:
-        lat = get_page_read_latency(n->flash_type, page_type);
+        //lat = get_page_read_latency(n->flash_type, page_type);
+        // HH
+          lat = get_page_read_latency(n->zone_array->d.zone_flash_type, page_type);
         break;
     case NVME_CMD_OC_WRITE:
     case NVME_CMD_WRITE:
-        lat = get_page_write_latency(n->flash_type, page_type);
+        lat = get_page_write_latency(n->zone_array->d.zone_flash_type, page_type);
         break;
     case NVME_CMD_OC_ERASE:
-        lat = get_blk_erase_latency(n->flash_type);
+        lat = get_blk_erase_latency(n->zone_array->d.zone_flash_type);
         break;
     default:
         assert(0);

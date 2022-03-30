@@ -12,14 +12,21 @@ static void init_mlc_page_pairing(FemuCtrl *n)
     int lpflag = MLC_LOWER_PAGE;
 
     for (i = 0; i < sizeof(lowp)/sizeof(lowp[0]); i++)
+    {
         mlc_tbl[lowp[i]] = MLC_LOWER_PAGE;
+        h_log("(mlc)%d: %d\n", lowp[i], mlc_tbl[lowp[i]]);
+    }
 
     for (i = 0; i < sizeof(uppp)/sizeof(uppp[0]); i++)
+    {
         mlc_tbl[uppp[i]] = MLC_UPPER_PAGE;
+        h_log("(mlc)%d: %d\n", uppp[i], mlc_tbl[lowp[i]]);
+    }
 
     for (i = 10; i <= MAX_SUPPORTED_PAGES_PER_BLOCK - 12; i += 2) {
         mlc_tbl[i] = mlc_tbl[i+1] = lpflag;
         lpflag = (lpflag == MLC_LOWER_PAGE) ? MLC_UPPER_PAGE : MLC_LOWER_PAGE;
+        h_log("(mlc)%d, %d: %d\n", i, i+1, mlc_tbl[i]);
     }
 }
 
@@ -38,16 +45,23 @@ static void init_tlc_page_pairing(FemuCtrl *n)
     int centerp[] = {6, 7};
 
     for (i = 0; i < sizeof(lowp)/sizeof(lowp[0]); i++)
+    {
         tlc_tbl[lowp[i]] = TLC_LOWER_PAGE;
+        //h_log("(tlc)%d: %d\n", lowp[i], tlc_tbl[lowp[i]]);
+    }
 
     for (i = 0; i < sizeof(centerp)/sizeof(centerp[0]); i++)
+    {
         tlc_tbl[centerp[i]] = TLC_CENTER_PAGE;
+        //h_log("(tlc)%d: %d\n", centerp[i], tlc_tbl[centerp[i]]);
+    }
 
     for (i = 0; i < rows - 2; i++) {
         for(j = 0; j < page_per_row; j += 2) {
             int idx = 8 + (i * page_per_row) + j;
             tlc_tbl[idx] = tlc_tbl[idx+1] = lpflag;
             lpflag = (lpflag == TLC_UPPER_PAGE) ? TLC_LOWER_PAGE : lpflag + 1;
+            //h_log("(tlc)%d, %d: %d\n", idx, idx+1, tlc_tbl[idx]);
         }
     }
 }

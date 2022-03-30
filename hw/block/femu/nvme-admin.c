@@ -948,20 +948,98 @@ static uint16_t nvme_format(FemuCtrl *n, NvmeCmd *cmd)
     return nvme_format_namespace(ns, lba_idx, meta_loc, pil, pi, sec_erase);
 }
 
+// HH
+#include "zns/zns.h"
+static uint16_t nvme_change_flash_type(FemuCtrl *n, NvmeCmd *cmd)
+{
+    h_log("cmdw10: %d\n", cmd->cdw10);
+    h_log("cmdw11: %d\n", cmd->cdw11);
+    h_log("num zones: %d\n", n->num_zones);
+    h_log("femuctrl n->flash_type: %d\n", n->zone_array->d.zone_flash_type);
+
+    if(cmd->cdw10 > n->num_zones || cmd->cdw10==0)
+    {
+        femu_err("Invalid zone (cdw10: 0x%x)\n", cmd->cdw10);
+        return NVME_ZONE_BOUNDARY_ERROR;
+    }
+    if(cmd->cdw11 > 4 || cmd->cdw11==0)
+    {
+        femu_err("Invalid type (cdw11: 0x%x)\n", cmd->cdw11);
+        return NVME_ZONE_BOUNDARY_ERROR;
+    }
+
+    uint64_t start = 0, zone_size = n->zone_size;
+    uint64_t capacity = n->num_zones * zone_size;
+    NvmeZone *zone;
+
+    zone = n->zone_array;
+    zone += cmd->cdw10;
+
+    if (start + zone_size > capacity) {
+        zone_size = capacity - start;
+    }
+    zone->d.zt = NVME_ZONE_TYPE_SEQ_WRITE;
+    zns_set_zone_state(zone, NVME_ZONE_STATE_EMPTY);
+    zone->d.za = 0;
+    zone->d.zcap = n->zone_capacity;
+    zone->d.zslba = start;
+    zone->d.wp = start;
+    zone->d.zone_flash_type = cmd->cdw11;
+    
+    zone->w_ptr = start;
+    start += zone_size;
+    
+    h_log("femuctrl after n->flash_type: %d\n", n->zone_array->d.zone_flash_type);
+
+    return NVME_SUCCESS;
+}
+
+
+static uint16_t nvme_print_flash_type(FemuCtrl *n, NvmeCmd *cmd)
+{
+    NvmeZone *zone;
+    zone = n->zone_array;
+    printf("\n");
+    printf("%10sslba %4scapacity %4swptr %4sstate %4stype %4sfalsh\n",
+    "","","","","","");
+    for(int i=0; i<n->num_zones; i++, zone++)
+    {
+        printf("   [zone#%2d] 0x%06lx | 0x%05lx | 0x%06lx | %9s | %6s | %s\n",
+        i,zone->d.zslba, zone->d.zcap, zone->d.wp,
+        zone->d.zs==0?"Rsrved":zone->d.zs==1?"Empty":zone->d.zs==2?"ImplicOpen"\
+        :zone->d.zs==3?"ExpliOpen":zone->d.zs==4?"Closed":zone->d.zs==0xD?"RdOnly"\
+        :zone->d.zs==0xE?"Full":zone->d.zs==0xF?"Offline":"Unknown"
+        ,zone->d.zt==0?"Rsrved":"SeqW"
+        ,zone->d.zone_flash_type==1?"SLC":zone->d.zone_flash_type==2?"MLC"\
+        :zone->d.zone_flash_type==3?"TLC":zone->d.zone_flash_type==4?"QLC":"Unknown");
+    }
+
+    return NVME_SUCCESS;
+}
+
+
 static uint16_t nvme_admin_cmd(FemuCtrl *n, NvmeCmd *cmd, NvmeCqe *cqe)
 {
     switch (cmd->opcode) {
     case NVME_ADM_CMD_FEMU_DEBUG:
-        n->upg_rd_lat_ns = le64_to_cpu(cmd->cdw10);
-        n->lpg_rd_lat_ns = le64_to_cpu(cmd->cdw11);
-        n->upg_wr_lat_ns = le64_to_cpu(cmd->cdw12);
-        n->lpg_wr_lat_ns = le64_to_cpu(cmd->cdw13);
-        n->blk_er_lat_ns = le64_to_cpu(cmd->cdw14);
-        n->chnl_pg_xfer_lat_ns = le64_to_cpu(cmd->cdw15);
+        if(cmd->cdw10>n->num_zones)
+        {
+            femu_err("Invalid Zone (cdw10:%d)\n", cmd->cdw10);
+            return NVME_ZONE_BOUNDARY_ERROR;
+        }
+
+        NvmeZone *zone;
+        zone = n->zone_array + cmd->cdw10;
+        zone->d.upg_rd_lat_ns = le64_to_cpu(cmd->cdw10);
+        zone->d.lpg_rd_lat_ns = le64_to_cpu(cmd->cdw11);
+        zone->d.upg_wr_lat_ns = le64_to_cpu(cmd->cdw12);
+        zone->d.lpg_wr_lat_ns = le64_to_cpu(cmd->cdw13);
+        zone->d.blk_er_lat_ns = le64_to_cpu(cmd->cdw14);
+        zone->d.chnl_pg_xfer_lat_ns = le64_to_cpu(cmd->cdw15);
         femu_log("tRu=%" PRId64 ", tRl=%" PRId64 ", tWu=%" PRId64 ", "
                 "tWl=%" PRId64 ", tBERS=%" PRId64 ", tCHNL=%" PRId64 "\n",
-                n->upg_rd_lat_ns, n->lpg_rd_lat_ns, n->upg_wr_lat_ns,
-                n->lpg_wr_lat_ns, n->blk_er_lat_ns, n->chnl_pg_xfer_lat_ns);
+                zone->d.upg_rd_lat_ns, zone->d.lpg_rd_lat_ns, zone->d.upg_wr_lat_ns,
+                zone->d.lpg_wr_lat_ns, zone->d.blk_er_lat_ns, zone->d.chnl_pg_xfer_lat_ns);
         return NVME_SUCCESS;
     case NVME_ADM_CMD_DELETE_SQ:
         femu_debug("admin cmd,del_sq\n");
@@ -1004,6 +1082,11 @@ static uint16_t nvme_admin_cmd(FemuCtrl *n, NvmeCmd *cmd, NvmeCqe *cqe)
     case NVME_ADM_CMD_SECURITY_SEND:
     case NVME_ADM_CMD_SECURITY_RECV:
         return NVME_INVALID_OPCODE | NVME_DNR;
+    //HH
+    case NVME_ADM_CMD_CHANGE_FLTYPE:
+        return nvme_change_flash_type(n, cmd);
+    case NVME_ADM_CMD_PRINT_FLTYPE:
+        return nvme_print_flash_type(n, cmd);
     default:
         if (n->ext_ops.admin_cmd) {
             return n->ext_ops.admin_cmd(n, cmd);

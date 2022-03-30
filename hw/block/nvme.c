@@ -1902,6 +1902,14 @@ static uint16_t nvme_aer(NvmeCtrl *n, NvmeRequest *req)
     return NVME_NO_COMPLETE;
 }
 
+//HH
+static uint16_t nvme_hh(NvmeCtrl *n, NvmeRequest *req)
+{
+    printf("Activate: custom HH command\n");
+
+    return NVME_NO_COMPLETE;
+}
+
 static uint16_t nvme_admin_cmd(NvmeCtrl *n, NvmeRequest *req)
 {
     trace_pci_nvme_admin_cmd(nvme_cid(req), nvme_sqid(req), req->cmd.opcode,
@@ -1913,7 +1921,7 @@ static uint16_t nvme_admin_cmd(NvmeCtrl *n, NvmeRequest *req)
     case NVME_ADM_CMD_CREATE_SQ:
         return nvme_create_sq(n, req);
     case NVME_ADM_CMD_GET_LOG_PAGE:
-        return nvme_get_log(n, req);
+        return nvme_get_log(n, req);                            
     case NVME_ADM_CMD_DELETE_CQ:
         return nvme_del_cq(n, req);
     case NVME_ADM_CMD_CREATE_CQ:
@@ -1923,11 +1931,13 @@ static uint16_t nvme_admin_cmd(NvmeCtrl *n, NvmeRequest *req)
     case NVME_ADM_CMD_ABORT:
         return nvme_abort(n, req);
     case NVME_ADM_CMD_SET_FEATURES:
-        return nvme_set_feature(n, req);
+        return nvme_set_feature(n, req);                                                          
     case NVME_ADM_CMD_GET_FEATURES:
         return nvme_get_feature(n, req);
     case NVME_ADM_CMD_ASYNC_EV_REQ:
         return nvme_aer(n, req);
+    case NVME_ADM_CMD_HH_CUSTOM:
+        return nvme_hh(n, req);
     default:
         trace_pci_nvme_err_invalid_admin_opc(req->cmd.opcode);
         return NVME_INVALID_OPCODE | NVME_DNR;

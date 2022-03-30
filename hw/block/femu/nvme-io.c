@@ -36,7 +36,8 @@ static inline void nvme_copy_cmd(NvmeCmd *dst, NvmeCmd *src)
 #endif
 }
 
-static void nvme_process_sq_io(void *opaque, int index_poller)
+//static void nvme_process_sq_io(void *opaque, int index_poller)
+static uint32_t nvme_process_sq_io(void *opaque, int index_poller)
 {
     NvmeSQueue *sq = opaque;
     FemuCtrl *n = sq->ctrl;
@@ -73,16 +74,17 @@ static void nvme_process_sq_io(void *opaque, int index_poller)
         }
 
         status = nvme_io_cmd(n, &cmd, req);
-        if (1 && status == NVME_SUCCESS) {
-            req->status = status;
+        req->status = status;
+
+        if (1 && req->status == NVME_SUCCESS) {
 
             int rc = femu_ring_enqueue(n->to_ftl[index_poller], (void *)&req, 1);
             if (rc != 1) {
                 femu_err("enqueue failed, ret=%d\n", rc);
+                break;
             }
         } else if (status == NVME_SUCCESS) {
             /* Normal I/Os that don't need delay emulation */
-            req->status = status;
         } else {
             femu_err("Error IO processed!\n");
         }
@@ -92,6 +94,9 @@ static void nvme_process_sq_io(void *opaque, int index_poller)
 
     nvme_update_sq_eventidx(sq);
     sq->completed += processed;
+
+    //HH
+    return req->status;
 }
 
 static void nvme_post_cqe(NvmeCQueue *cq, NvmeRequest *req)
@@ -206,6 +211,8 @@ static void *nvme_poller(void *arg)
             NvmeCQueue *cq = n->cq[index];
             if (sq && sq->is_active && cq && cq->is_active) {
                 nvme_process_sq_io(sq, index);
+                //HH
+                //assert(nvme_process_sq_io(sq, index)==0);
             }
             nvme_process_cq_cpl(n, index);
         }
@@ -216,12 +223,18 @@ static void *nvme_poller(void *arg)
                 usleep(1000);
                 continue;
             }
+            //int rc;
 
             for (int i = 1; i <= n->num_io_queues; i++) {
                 NvmeSQueue *sq = n->sq[i];
                 NvmeCQueue *cq = n->cq[i];
                 if (sq && sq->is_active && cq && cq->is_active) {
                     nvme_process_sq_io(sq, index);
+
+                    //HH
+                    //rc=nvme_process_sq_io(sq, index);
+                    //femu_err("DEBUG STATUS=0x%x\n",  rc);
+                    //assert(rc==0);
                 }
             }
             nvme_process_cq_cpl(n, index);

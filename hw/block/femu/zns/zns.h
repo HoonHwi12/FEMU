@@ -64,6 +64,23 @@ typedef struct QEMU_PACKED NvmeZoneDescr {
     uint64_t    zslba;
     uint64_t    wp;
     uint8_t     rsvd32[32];
+
+    // HH
+    uint8_t     zone_flash_type;
+    
+    // latency
+    int64_t upg_rd_lat_ns; /* upper page in MLC/TLC/QLC */
+    int64_t cpg_rd_lat_ns; /* center page in TLC */
+    int64_t cupg_rd_lat_ns; /* center-upper page in QLC */
+    int64_t clpg_rd_lat_ns; /* center-lower page in QLC */
+    int64_t lpg_rd_lat_ns; /* lower page in MLC/TLC/QLC */
+    int64_t upg_wr_lat_ns;
+    int64_t cpg_wr_lat_ns;
+    int64_t cupg_wr_lat_ns;
+    int64_t clpg_wr_lat_ns;
+    int64_t lpg_wr_lat_ns;
+    int64_t blk_er_lat_ns;
+    int64_t chnl_pg_xfer_lat_ns;
 } NvmeZoneDescr;
 
 typedef enum NvmeZoneState {

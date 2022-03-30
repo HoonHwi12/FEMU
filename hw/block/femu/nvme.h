@@ -327,6 +327,10 @@ enum NvmeAdminCommands {
     NVME_ADM_CMD_SET_DB_MEMORY  = 0x7c,
     NVME_ADM_CMD_FEMU_DEBUG     = 0xee,
     NVME_ADM_CMD_FEMU_FLIP      = 0xef,
+
+    //HH
+    NVME_ADM_CMD_CHANGE_FLTYPE  = 0x89,
+    NVME_ADM_CMD_PRINT_FLTYPE   = 0X90,
 };
 
 enum NvmeIoCommands {
@@ -1290,19 +1294,19 @@ typedef struct FemuCtrl {
     volatile int64_t chnl_next_avail_time[FEMU_MAX_NUM_CHNLS];
     pthread_spinlock_t chnl_locks[FEMU_MAX_NUM_CHNLS];
 
-    /* Latency numbers for whitebox-mode only */
-    int64_t upg_rd_lat_ns; /* upper page in MLC/TLC/QLC */
-    int64_t cpg_rd_lat_ns; /* center page in TLC */
-    int64_t cupg_rd_lat_ns; /* center-upper page in QLC */
-    int64_t clpg_rd_lat_ns; /* center-lower page in QLC */
-    int64_t lpg_rd_lat_ns; /* lower page in MLC/TLC/QLC */
-    int64_t upg_wr_lat_ns;
-    int64_t cpg_wr_lat_ns;
-    int64_t cupg_wr_lat_ns;
-    int64_t clpg_wr_lat_ns;
-    int64_t lpg_wr_lat_ns;
-    int64_t blk_er_lat_ns;
-    int64_t chnl_pg_xfer_lat_ns;
+    // /* Latency numbers for whitebox-mode only */
+    // int64_t upg_rd_lat_ns; /* upper page in MLC/TLC/QLC */
+    // int64_t cpg_rd_lat_ns; /* center page in TLC */
+    // int64_t cupg_rd_lat_ns; /* center-upper page in QLC */
+    // int64_t clpg_rd_lat_ns; /* center-lower page in QLC */
+    // int64_t lpg_rd_lat_ns; /* lower page in MLC/TLC/QLC */
+    // int64_t upg_wr_lat_ns;
+    // int64_t cpg_wr_lat_ns;
+    // int64_t cupg_wr_lat_ns;
+    // int64_t clpg_wr_lat_ns;
+    // int64_t lpg_wr_lat_ns;
+    // int64_t blk_er_lat_ns;
+    // int64_t chnl_pg_xfer_lat_ns;
 
     struct ssd      *ssd;
     SsdDramBackend  *mbe;
@@ -1477,7 +1481,7 @@ static inline uint16_t nvme_check_mdts(FemuCtrl *n, size_t len)
 #define MN_MAX_LEN (64)
 #define ID_MAX_LEN (4)
 
-//#define FEMU_DEBUG_NVME
+#define FEMU_DEBUG_NVME
 #ifdef FEMU_DEBUG_NVME
 #define femu_debug(fmt, ...) \
     do { printf("[FEMU] Dbg: " fmt, ## __VA_ARGS__); } while (0)
@@ -1491,6 +1495,9 @@ static inline uint16_t nvme_check_mdts(FemuCtrl *n, size_t len)
 
 #define femu_log(fmt, ...) \
     do { printf("[FEMU] Log: " fmt, ## __VA_ARGS__); } while (0)
+
+#define h_log(fmt, ...) \
+    do { fprintf(stderr, "[hoonhwi] Log: " fmt, ## __VA_ARGS__); } while (0)
 
 
 #endif /* __FEMU_NVME_H */

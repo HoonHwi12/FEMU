@@ -110,6 +110,9 @@ static void zns_init_zoned_state(NvmeNamespace *ns)
         zone->d.zcap = n->zone_capacity;
         zone->d.zslba = start;
         zone->d.wp = start;
+        //HH
+        zone->d.zone_flash_type = n->flash_type;
+
         zone->w_ptr = start;
         start += zone_size;
     }
@@ -320,6 +323,7 @@ static uint16_t zns_check_zone_write(FemuCtrl *n, NvmeNamespace *ns,
     uint16_t status;
 
     if (unlikely((slba + nlb) > zns_zone_wr_boundary(zone))) {
+        h_log("*********ZONE NVME_ZONE_BOUNDARY_ERROR Error*********\n");
         status = NVME_ZONE_BOUNDARY_ERROR;
     } else {
         status = zns_check_zone_state_for_write(zone);
@@ -330,12 +334,15 @@ static uint16_t zns_check_zone_write(FemuCtrl *n, NvmeNamespace *ns,
         assert(zns_wp_is_valid(zone));
         if (append) {
             if (unlikely(slba != zone->d.zslba)) {
+                h_log("*********ZONE INVALID FIELD Error*********\n");
                 status = NVME_INVALID_FIELD;
             }
             if (zns_l2b(ns, nlb) > (n->page_size << n->zasl)) {
+                h_log("*********ZONE INVALID FIELD Error*********\n");
                 status = NVME_INVALID_FIELD;
             }
         } else if (unlikely(slba != zone->w_ptr)) {
+            h_log(" *********ZONE INVALID WRITE Error*********\n");
             status = NVME_ZONE_INVALID_WRITE;
         }
     }
@@ -1179,11 +1186,13 @@ static uint16_t zns_write(FemuCtrl *n, NvmeNamespace *ns, NvmeCmd *cmd,
 
     status = nvme_check_mdts(n, data_size);
     if (status) {
+        femu_err("hoonhwi:*********ZONE Check MDTS Error*********\n");
         goto err;
     }
 
     status = zns_check_bounds(ns, slba, nlb);
     if (status) {
+        femu_err("hoonhwi:*********ZONE Check Bounds Error*********\n");
         goto err;
     }
 
@@ -1196,6 +1205,7 @@ static uint16_t zns_write(FemuCtrl *n, NvmeNamespace *ns, NvmeCmd *cmd,
 
     status = zns_auto_open_zone(ns, zone);
     if (status) {
+        femu_err("hoonhwi:*********ZONE Open Error*********\n");
         goto err;
     }
 
@@ -1205,6 +1215,7 @@ static uint16_t zns_write(FemuCtrl *n, NvmeNamespace *ns, NvmeCmd *cmd,
 
     status = zns_map_dptr(n, data_size, req);
     if (status) {
+        femu_err("hoonhwi:*********ZONE Map DPTR Error*********\n");
         goto err;
     }
 

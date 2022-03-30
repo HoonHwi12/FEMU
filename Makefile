@@ -108,11 +108,10 @@ endif
 config-host.mak: $(SRC_PATH)/configure $(SRC_PATH)/pc-bios $(SRC_PATH)/VERSION
 	@echo config-host.mak is out-of-date, running configure
 	@if test -f meson-private/coredata.dat; then \
-	  ./config.status --skip-meson; \
+		./config.status --skip-meson; \
 	else \
 	  ./config.status && touch build.ninja.stamp; \
 	fi
-
 # 2. meson.stamp exists if meson has run at least once (so ninja reconfigure
 # works), but otherwise never needs to be updated
 meson-private/coredata.dat: meson.stamp

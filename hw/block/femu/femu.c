@@ -2,6 +2,7 @@
 #include "hw/qdev-properties.h"
 
 #include "./nvme.h"
+#include "zns/zns.h"
 
 #define NVME_SPEC_VER (0x00010400)
 
@@ -508,6 +509,7 @@ static int nvme_register_extensions(FemuCtrl *n)
     } else if (BBSSD(n)) {
         nvme_register_bbssd(n);
     } else if (ZNSSD(n)) {
+        h_log("nvme register znssd\n");
         nvme_register_znssd(n);
     } else {
     }
@@ -637,7 +639,7 @@ static Property femu_props[] = {
     DEFINE_PROP_UINT16("vid", FemuCtrl, vid, 0x1d1d),
     DEFINE_PROP_UINT16("did", FemuCtrl, did, 0x1f1f),
     DEFINE_PROP_UINT8("femu_mode", FemuCtrl, femu_mode, FEMU_NOSSD_MODE),
-    DEFINE_PROP_UINT8("flash_type", FemuCtrl, flash_type, MLC),
+    DEFINE_PROP_UINT8("flash_type", FemuCtrl, flash_type, TLC),
     DEFINE_PROP_UINT8("lver", FemuCtrl, lver, 0x2),
     DEFINE_PROP_UINT16("lsec_size", FemuCtrl, oc_params.sec_size, 4096),
     DEFINE_PROP_UINT8("lsecs_per_pg", FemuCtrl, oc_params.secs_per_pg, 4),
