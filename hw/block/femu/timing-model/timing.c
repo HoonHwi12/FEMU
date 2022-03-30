@@ -90,7 +90,7 @@ int64_t advance_channel_timestamp(FemuCtrl *n, int ch, uint64_t now, int opcode)
     switch (opcode) {
     case NVME_CMD_OC_READ:
     case NVME_CMD_OC_WRITE:
-        data_ready_ts = start_data_xfer_ts + n->chnl_pg_xfer_lat_ns * 2;
+        data_ready_ts = start_data_xfer_ts + n->zone_array->d.chnl_pg_xfer_lat_ns * 2;
         break;
     case NVME_CMD_OC_ERASE:
         data_ready_ts = start_data_xfer_ts;

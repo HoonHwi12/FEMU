@@ -1000,7 +1000,7 @@ static uint16_t nvme_print_flash_type(FemuCtrl *n, NvmeCmd *cmd)
     NvmeZone *zone;
     zone = n->zone_array;
     printf("\n");
-    printf("%10sslba %4scapacity %4swptr %4sstate %4stype %4sfalsh\n",
+    printf("%13sslba %3scapacity %4swptr %4sstate %4stype %4sfalsh\n",
     "","","","","","");
     for(int i=0; i<n->num_zones; i++, zone++)
     {
