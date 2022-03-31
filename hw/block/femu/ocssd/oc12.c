@@ -1,10 +1,5 @@
 #include "./oc12.h"
 
-static uint16_t oc12_io_cmd(FemuCtrl *n, NvmeNamespace *ns, NvmeCmd *cmd, NvmeRequest *req);
-static void oc12_set_ctrl_str(FemuCtrl *n);
-static int oc12_init_more(FemuCtrl *n);
-static void oc12_init(FemuCtrl *n, Error **errp);
-
 static inline int qemu_fls(int i)
 {
     return 32 - clz32(i);
@@ -312,9 +307,7 @@ static void oc12_read_ppa_list(FemuCtrl *n, Oc12RwCmd *cmd, uint64_t *ppa_list)
  *
  * Results are stored in @bucket and @n
  */
-// HH
-#include "../zns/zns.h"
-
+// HH temp
 static void parse_ppa_list(FemuCtrl *n, NvmeNamespace *ns, NvmeCmd *cmd,
                            NvmeRequest *req, AddrBucket *bucket, int *nr)
 {
@@ -342,7 +335,7 @@ static void parse_ppa_list(FemuCtrl *n, NvmeNamespace *ns, NvmeCmd *cmd,
             bucket[secs_idx].lun = PPA_LUN(ln, ppa);
             bucket[secs_idx].pg = PPA_PG(ln, ppa);
             //bucket[secs_idx].page_type = get_page_type(n->flash_type, bucket[secs_idx].pg);
-            bucket[secs_idx].page_type = get_page_type(n->zone_array->d.zone_flash_type , bucket[secs_idx].pg);
+            bucket[secs_idx].page_type = get_page_type(n->flash_type , bucket[secs_idx].pg);
 
             prev_pg_addr = cur_pg_addr;
         }
