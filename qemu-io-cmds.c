@@ -834,6 +834,8 @@ static int read_f(BlockBackend *blk, int argc, char **argv)
 
     buf = qemu_io_alloc(blk, count, 0xab);
 
+    printf("hoon: readf start time is here\n");
+
     clock_gettime(CLOCK_MONOTONIC, &t1);
     if (bflag) {
         ret = do_load_vmstate(blk, buf, offset, count, &total);
@@ -841,6 +843,7 @@ static int read_f(BlockBackend *blk, int argc, char **argv)
         ret = do_pread(blk, buf, offset, count, &total);
     }
     clock_gettime(CLOCK_MONOTONIC, &t2);
+
 
     if (ret < 0) {
         printf("read failed: %s\n", strerror(-ret));
@@ -966,6 +969,8 @@ static int readv_f(BlockBackend *blk, int argc, char **argv)
     if (buf == NULL) {
         return -EINVAL;
     }
+
+    printf("hoon: readvf start time is here\n");
 
     clock_gettime(CLOCK_MONOTONIC, &t1);
     ret = do_aio_readv(blk, &qiov, offset, &total);
@@ -1181,6 +1186,8 @@ static int write_f(BlockBackend *blk, int argc, char **argv)
         }
     }
 
+    printf("hoon: writef start time is here\n");
+
     clock_gettime(CLOCK_MONOTONIC, &t1);
     if (bflag) {
         ret = do_save_vmstate(blk, buf, offset, count, &total);
@@ -1303,6 +1310,8 @@ static int writev_f(BlockBackend *blk, int argc, char **argv)
         return -EINVAL;
     }
 
+    printf("hoon: writevf start time is here\n");
+
     clock_gettime(CLOCK_MONOTONIC, &t1);
     ret = do_aio_writev(blk, &qiov, offset, flags, &total);
     clock_gettime(CLOCK_MONOTONIC, &t2);
@@ -1343,13 +1352,13 @@ struct aio_ctx {
     struct timespec t1;
 };
 
+
 static void aio_write_done(void *opaque, int ret)
 {
     struct aio_ctx *ctx = opaque;
     struct timespec t2;
 
     clock_gettime(CLOCK_MONOTONIC, &t2);
-
 
     if (ret < 0) {
         printf("aio_write failed: %s\n", strerror(-ret));
@@ -1380,8 +1389,8 @@ static void aio_read_done(void *opaque, int ret)
     struct aio_ctx *ctx = opaque;
     struct timespec t2;
 
+    printf("hoon: read done time is here\n");
     clock_gettime(CLOCK_MONOTONIC, &t2);
-
     if (ret < 0) {
         printf("readv failed: %s\n", strerror(-ret));
         block_acct_failed(blk_get_stats(ctx->blk), &ctx->acct);
@@ -1514,6 +1523,8 @@ static int aio_read_f(BlockBackend *blk, int argc, char **argv)
         g_free(ctx);
         return -EINVAL;
     }
+
+    printf("hoon: aio readf start time is here\n");
 
     clock_gettime(CLOCK_MONOTONIC, &ctx->t1);
     block_acct_start(blk_get_stats(blk), &ctx->acct, ctx->qiov.size,
@@ -1660,7 +1671,9 @@ static int aio_write_f(BlockBackend *blk, int argc, char **argv)
             return -EINVAL;
         }
 
+        printf("hoon: aio writef start time is here\n");
         clock_gettime(CLOCK_MONOTONIC, &ctx->t1);
+        // HERE
         block_acct_start(blk_get_stats(blk), &ctx->acct, ctx->qiov.size,
                          BLOCK_ACCT_WRITE);
 
@@ -1881,6 +1894,8 @@ static int discard_f(BlockBackend *blk, int argc, char **argv)
                (uint64_t)BDRV_REQUEST_MAX_BYTES, argv[optind]);
         return -EINVAL;
     }
+
+    printf("hoon: discard start time is here\n");
 
     clock_gettime(CLOCK_MONOTONIC, &t1);
     ret = blk_pdiscard(blk, offset, bytes);

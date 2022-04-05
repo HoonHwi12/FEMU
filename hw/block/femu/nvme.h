@@ -1294,19 +1294,19 @@ typedef struct FemuCtrl {
     volatile int64_t chnl_next_avail_time[FEMU_MAX_NUM_CHNLS];
     pthread_spinlock_t chnl_locks[FEMU_MAX_NUM_CHNLS];
 
-    /* Latency numbers for whitebox-mode only */
-    int64_t upg_rd_lat_ns; /* upper page in MLC/TLC/QLC */
-    int64_t cpg_rd_lat_ns; /* center page in TLC */
-    int64_t cupg_rd_lat_ns; /* center-upper page in QLC */
-    int64_t clpg_rd_lat_ns; /* center-lower page in QLC */
-    int64_t lpg_rd_lat_ns; /* lower page in MLC/TLC/QLC */
-    int64_t upg_wr_lat_ns;
-    int64_t cpg_wr_lat_ns;
-    int64_t cupg_wr_lat_ns;
-    int64_t clpg_wr_lat_ns;
-    int64_t lpg_wr_lat_ns;
-    int64_t blk_er_lat_ns;
-    int64_t chnl_pg_xfer_lat_ns;
+    // /* Latency numbers for whitebox-mode only */
+    // int64_t upg_rd_lat_ns; /* upper page in MLC/TLC/QLC */
+    // int64_t cpg_rd_lat_ns; /* center page in TLC */
+    // int64_t cupg_rd_lat_ns; /* center-upper page in QLC */
+    // int64_t clpg_rd_lat_ns; /* center-lower page in QLC */
+    // int64_t lpg_rd_lat_ns; /* lower page in MLC/TLC/QLC */
+    // int64_t upg_wr_lat_ns;
+    // int64_t cpg_wr_lat_ns;
+    // int64_t cupg_wr_lat_ns;
+    // int64_t clpg_wr_lat_ns;
+    // int64_t lpg_wr_lat_ns;
+    // int64_t blk_er_lat_ns;
+    // int64_t chnl_pg_xfer_lat_ns;
 
     struct ssd      *ssd;
     SsdDramBackend  *mbe;

@@ -51,6 +51,8 @@ static void __attribute__((constructor)) init_get_clock(void)
 {
     struct timespec ts;
 
+    printf("hoon: get clock is here\n");
+
     use_rt_clock = 0;
     if (clock_gettime(CLOCK_MONOTONIC, &ts) == 0) {
         use_rt_clock = 1;

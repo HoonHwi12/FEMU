@@ -2435,6 +2435,7 @@ MemTxResult address_space_write_cached_slow(MemoryRegionCache *cache,
 static inline bool memory_access_is_direct(MemoryRegion *mr, bool is_write)
 {
     if (is_write) {
+        // H REGION IS RAM
         return memory_region_is_ram(mr) && !mr->readonly &&
                !mr->rom_device && !memory_region_is_ram_device(mr);
     } else {

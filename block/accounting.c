@@ -187,6 +187,8 @@ static void block_account_one_io(BlockAcctStats *stats, BlockAcctCookie *cookie,
 {
     BlockAcctTimedStats *s;
     int64_t time_ns = qemu_clock_get_ns(clock_type);
+    //int64_t latency_ns = time_ns - cookie->start_time_ns;
+    // HH
     int64_t latency_ns = time_ns - cookie->start_time_ns;
 
     if (qtest_enabled()) {

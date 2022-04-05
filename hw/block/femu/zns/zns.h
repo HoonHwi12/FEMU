@@ -175,6 +175,7 @@ static inline NvmeZoneState zns_get_zone_state(NvmeZone *zone)
 static inline void zns_set_zone_state(NvmeZone *zone, NvmeZoneState state)
 {
     zone->d.zs = state << 4;
+    printf("zone->d.zs: %d\n", zone->d.zs);
 }
 
 static inline uint64_t zns_zone_rd_boundary(NvmeNamespace *ns, NvmeZone *zone)

@@ -878,6 +878,7 @@ static inline uint16_t nvme_check_bounds(NvmeCtrl *n, NvmeNamespace *ns,
     return NVME_SUCCESS;
 }
 
+// HH
 static void nvme_rw_cb(void *opaque, int ret)
 {
     NvmeRequest *req = opaque;

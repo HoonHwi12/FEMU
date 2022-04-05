@@ -127,6 +127,8 @@ static void qemu_spice_create_one_update(SimpleSpiceDisplay *ssd,
     struct timespec time_space;
     pixman_image_t *dest;
 
+    printf("hoon: gettime is here\n");
+
     trace_qemu_spice_create_update(
            rect->left, rect->right,
            rect->top, rect->bottom);

@@ -1047,20 +1047,18 @@ static uint16_t nvme_print_flash_type(FemuCtrl *n, NvmeCmd *cmd)
     NvmeZone *zone;
     zone = n->zone_array;
     printf("\n");
-    printf("%14sslba %4scapacity %4swptr %5sstate %5stype %4sfalsh\n",
+    printf("%16sslba %4scapacity %4swptr %6sstate %5stype %4sfalsh\n",
     "","","","","","");
     for(int i=0; i<n->num_zones; i++, zone++)
     {
-        printf("   [zone#%2d] 0x%06lx | 0x%05lx | 0x%06lx | %9s | %6s | %s | %ld | %ld | %ld | %ld\n",
+        printf("  [zone#%2d] 0x%06lx | 0x%05lx | 0x%06lx | %9s | %6s | %s\n",
         i,zone->d.zslba, zone->d.zcap, zone->d.wp,
-        zone->d.zs==0?"Rsrved":zone->d.zs==1?"Empty":zone->d.zs==2?"ImplicOpen"\
-        :zone->d.zs==3?"ExpliOpen":zone->d.zs==4?"Closed":zone->d.zs==0xD?"RdOnly"\
-        :zone->d.zs==0xE?"Full":zone->d.zs==0xF?"Offline":"Unknown"
+        zone->d.zs==0?"Rsrved":zone->d.zs==0x10?"Empty":zone->d.zs==20?"ImplicOpen"\
+        :zone->d.zs==30?"ExpliOpen":zone->d.zs==40?"Closed":zone->d.zs==0xD0?"RdOnly"\
+        :zone->d.zs==0xE0?"Full":zone->d.zs==0xF0?"Offline":"Unknown"
         ,zone->d.zt==0?"Rsrved":"SeqW"
         ,zone->d.zone_flash_type==1?"SLC":zone->d.zone_flash_type==2?"MLC"\
-        :zone->d.zone_flash_type==3?"TLC":zone->d.zone_flash_type==4?"QLC":"Unknown"
-        ,zone->d.blk_er_lat_ns, zone->d.chnl_pg_xfer_lat_ns, zone->d.lpg_rd_lat_ns
-        ,n->blk_er_lat_ns);
+        :zone->d.zone_flash_type==3?"TLC":zone->d.zone_flash_type==4?"QLC":"Unknown");
     }
 
     return NVME_SUCCESS;

@@ -248,7 +248,7 @@ static void zns_assign_zone_state(NvmeNamespace *ns, NvmeZone *zone,
             ;
         }
     }
-
+printf("hoon zns_assign_zone_state\n");
     zns_set_zone_state(zone, state);
 
     switch (state) {
@@ -468,6 +468,7 @@ static void zns_finalize_zoned_write(NvmeNamespace *ns, NvmeRequest *req,
             zns_aor_dec_active(ns);
             /* fall through */
         case NVME_ZONE_STATE_EMPTY:
+            printf("hoon: zns_finalize_zoned_write] case] NVME_ZONE_STATE_EMPTY\n");
             zns_assign_zone_state(ns, zone, NVME_ZONE_STATE_FULL);
             /* fall through */
         case NVME_ZONE_STATE_FULL:
@@ -494,6 +495,7 @@ static uint64_t zns_advance_zone_wp(NvmeNamespace *ns, NvmeZone *zone,
             /* fall through */
         case NVME_ZONE_STATE_CLOSED:
             zns_aor_inc_open(ns);
+            printf("hoon: zns_advance_zone_wp] case] NVME_ZONE_STATE_CLOSED \n");
             zns_assign_zone_state(ns, zone, NVME_ZONE_STATE_IMPLICITLY_OPEN);
         }
     }
@@ -647,6 +649,7 @@ static uint16_t zns_set_zd_ext(NvmeNamespace *ns, NvmeZone *zone)
         }
         zns_aor_inc_active(ns);
         zone->d.za |= NVME_ZA_ZD_EXT_VALID;
+
         zns_assign_zone_state(ns, zone, NVME_ZONE_STATE_CLOSED);
         return NVME_SUCCESS;
     }
@@ -1180,6 +1183,7 @@ static uint16_t zns_write(FemuCtrl *n, NvmeNamespace *ns, NvmeCmd *cmd,
     NvmeZone *zone;
     NvmeZonedResult *res = (NvmeZonedResult *)&req->cqe;
     uint16_t status;
+    
 
     assert(n->zoned);
     req->is_write = true;
@@ -1234,14 +1238,20 @@ static uint16_t zns_io_cmd(FemuCtrl *n, NvmeNamespace *ns, NvmeCmd *cmd,
 {
     switch (cmd->opcode) {
     case NVME_CMD_READ:
+        usleep(n->zone_array->d.cupg_rd_lat_ns*1000); // HH
+
         return zns_read(n, ns, cmd, req);
     case NVME_CMD_WRITE:
+        usleep(n->zone_array->d.cupg_wr_lat_ns*1000); // HH
+
         return zns_write(n, ns, cmd, req);
     case NVME_CMD_ZONE_MGMT_SEND:
         return zns_zone_mgmt_send(n, req);
     case NVME_CMD_ZONE_MGMT_RECV:
         return zns_zone_mgmt_recv(n, req);
     case NVME_CMD_ZONE_APPEND:
+        usleep(n->zone_array->d.cupg_wr_lat_ns*1000); // HH
+
         return zns_zone_append(n, req);
     }
 

@@ -114,6 +114,7 @@ static int virtio_blk_handle_rw_error(VirtIOBlockReq *req, int error,
     return action != BLOCK_ERROR_ACTION_IGNORE;
 }
 
+// HH
 static void virtio_blk_rw_complete(void *opaque, int ret)
 {
     VirtIOBlockReq *next = opaque;

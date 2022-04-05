@@ -334,7 +334,6 @@ static void parse_ppa_list(FemuCtrl *n, NvmeNamespace *ns, NvmeCmd *cmd,
             bucket[secs_idx].ch = PPA_CH(ln, ppa);
             bucket[secs_idx].lun = PPA_LUN(ln, ppa);
             bucket[secs_idx].pg = PPA_PG(ln, ppa);
-            //bucket[secs_idx].page_type = get_page_type(n->flash_type, bucket[secs_idx].pg);
             bucket[secs_idx].page_type = get_page_type(n->flash_type , bucket[secs_idx].pg);
 
             prev_pg_addr = cur_pg_addr;
