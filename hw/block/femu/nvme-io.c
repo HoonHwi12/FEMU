@@ -38,6 +38,7 @@ static inline void nvme_copy_cmd(NvmeCmd *dst, NvmeCmd *src)
 
 static void nvme_process_sq_io(void *opaque, int index_poller)
 {
+    printf("nvme prrocess sq io\n");
     NvmeSQueue *sq = opaque;
     FemuCtrl *n = sq->ctrl;
 

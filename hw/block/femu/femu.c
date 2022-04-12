@@ -519,6 +519,7 @@ static int nvme_register_extensions(FemuCtrl *n)
 
 static void femu_realize(PCIDevice *pci_dev, Error **errp)
 {
+    printf("hoon: femu_realize\n");
     FemuCtrl *n = FEMU(pci_dev);
     int64_t bs_size;
 
@@ -530,7 +531,10 @@ static void femu_realize(PCIDevice *pci_dev, Error **errp)
 
     bs_size = ((int64_t)n->memsz) * 1024 * 1024;
 
-    init_dram_backend(&n->mbe, bs_size);
+    printf("init dram backend! size %ld / femu_mode %d / logic space %p / mbe_size %ld\n",
+        bs_size, n->mbe->femu_mode, n->mbe->logical_space, n->mbe->size);
+
+    init_dram_backend(&n->mbe, bs_size); 
     n->mbe->femu_mode = n->femu_mode;
 
     n->completed = 0;
@@ -659,6 +663,7 @@ static const VMStateDescription femu_vmstate = {
 
 static void femu_class_init(ObjectClass *oc, void *data)
 {
+    printf("hoon: femu_class_init\n");
     DeviceClass *dc = DEVICE_CLASS(oc);
     PCIDeviceClass *pc = PCI_DEVICE_CLASS(oc);
 

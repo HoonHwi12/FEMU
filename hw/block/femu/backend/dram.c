@@ -4,6 +4,7 @@
 
 int init_dram_backend(SsdDramBackend **mbe, int64_t nbytes)
 {
+    printf("hoon: init dram backend\n");
     SsdDramBackend *b = *mbe = g_malloc0(sizeof(SsdDramBackend));
 
     b->size = nbytes;

@@ -1310,6 +1310,7 @@ static int zns_start_ctrl(FemuCtrl *n)
 
 static void zns_init(FemuCtrl *n, Error **errp)
 {
+    printf("hoon: zns init\n");
     NvmeNamespace *ns = &n->namespaces[0];
 
     zns_set_ctrl(n);
