@@ -327,6 +327,11 @@ enum NvmeAdminCommands {
     NVME_ADM_CMD_SET_DB_MEMORY  = 0x7c,
     NVME_ADM_CMD_FEMU_DEBUG     = 0xee,
     NVME_ADM_CMD_FEMU_FLIP      = 0xef,
+
+    // by HH: Vendor Specific admin cmd --------------------------------------------------------------------
+    NVME_ADM_CMD_CHANGE_FLTYPE  = 0x89,
+    NVME_ADM_CMD_PRINT_FLTYPE   = 0X90,
+    // ------------------------------------------------------------------------------------------------------
 };
 
 enum NvmeIoCommands {
@@ -1492,6 +1497,10 @@ static inline uint16_t nvme_check_mdts(FemuCtrl *n, size_t len)
 #define femu_log(fmt, ...) \
     do { printf("[FEMU] Log: " fmt, ## __VA_ARGS__); } while (0)
 
+// by HH: Custom debug log -----------------------------------------------------------------------------
+#define h_log(fmt, ...) \
+    do { fprintf(stderr, "[hoonhwi] Log: " fmt, ## __VA_ARGS__); } while (0)
+// -----------------------------------------------------------------------------------------------------
 
 #endif /* __FEMU_NVME_H */
 

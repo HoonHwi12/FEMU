@@ -1902,6 +1902,16 @@ static uint16_t nvme_aer(NvmeCtrl *n, NvmeRequest *req)
     return NVME_NO_COMPLETE;
 }
 
+
+// by HH: vendor specific admin cmd ---------------------------------------------------------------------
+static uint16_t nvme_hh(NvmeCtrl *n, NvmeRequest *req)
+{
+    printf("Activate: custom HH command\n");
+
+    return NVME_NO_COMPLETE;
+}
+// -----------------------------------------------------------------------------------------------------
+
 static uint16_t nvme_admin_cmd(NvmeCtrl *n, NvmeRequest *req)
 {
     trace_pci_nvme_admin_cmd(nvme_cid(req), nvme_sqid(req), req->cmd.opcode,
@@ -1928,6 +1938,8 @@ static uint16_t nvme_admin_cmd(NvmeCtrl *n, NvmeRequest *req)
         return nvme_get_feature(n, req);
     case NVME_ADM_CMD_ASYNC_EV_REQ:
         return nvme_aer(n, req);
+    case NVME_ADM_CMD_HH_CUSTOM:
+        return nvme_hh(n, req);
     default:
         trace_pci_nvme_err_invalid_admin_opc(req->cmd.opcode);
         return NVME_INVALID_OPCODE | NVME_DNR;

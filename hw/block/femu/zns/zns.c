@@ -110,6 +110,11 @@ static void zns_init_zoned_state(NvmeNamespace *ns)
         zone->d.zcap = n->zone_capacity;
         zone->d.zslba = start;
         zone->d.wp = start;
+
+        // by HH ---------------------------------------------------
+        zone->d.zone_flash_type = n->flash_type;
+        // ----------------------------------------------------------
+
         zone->w_ptr = start;
         start += zone_size;
     }
@@ -245,7 +250,7 @@ static void zns_assign_zone_state(NvmeNamespace *ns, NvmeZone *zone,
             ;
         }
     }
-
+printf("hoon zns_assign_zone_state\n");
     zns_set_zone_state(zone, state);
 
     switch (state) {
@@ -320,6 +325,7 @@ static uint16_t zns_check_zone_write(FemuCtrl *n, NvmeNamespace *ns,
     uint16_t status;
 
     if (unlikely((slba + nlb) > zns_zone_wr_boundary(zone))) {
+        h_log("*********ZONE NVME_ZONE_BOUNDARY_ERROR Error*********\n");
         status = NVME_ZONE_BOUNDARY_ERROR;
     } else {
         status = zns_check_zone_state_for_write(zone);
@@ -330,12 +336,15 @@ static uint16_t zns_check_zone_write(FemuCtrl *n, NvmeNamespace *ns,
         assert(zns_wp_is_valid(zone));
         if (append) {
             if (unlikely(slba != zone->d.zslba)) {
+                h_log("*********ZONE INVALID FIELD Error*********\n");
                 status = NVME_INVALID_FIELD;
             }
             if (zns_l2b(ns, nlb) > (n->page_size << n->zasl)) {
+                h_log("*********ZONE INVALID FIELD Error*********\n");
                 status = NVME_INVALID_FIELD;
             }
         } else if (unlikely(slba != zone->w_ptr)) {
+            h_log(" *********ZONE INVALID WRITE Error*********\n");
             status = NVME_ZONE_INVALID_WRITE;
         }
     }
@@ -461,6 +470,7 @@ static void zns_finalize_zoned_write(NvmeNamespace *ns, NvmeRequest *req,
             zns_aor_dec_active(ns);
             /* fall through */
         case NVME_ZONE_STATE_EMPTY:
+            printf("hoon: zns_finalize_zoned_write] case] NVME_ZONE_STATE_EMPTY\n");
             zns_assign_zone_state(ns, zone, NVME_ZONE_STATE_FULL);
             /* fall through */
         case NVME_ZONE_STATE_FULL:
@@ -487,6 +497,7 @@ static uint64_t zns_advance_zone_wp(NvmeNamespace *ns, NvmeZone *zone,
             /* fall through */
         case NVME_ZONE_STATE_CLOSED:
             zns_aor_inc_open(ns);
+            printf("hoon: zns_advance_zone_wp] case] NVME_ZONE_STATE_CLOSED \n");
             zns_assign_zone_state(ns, zone, NVME_ZONE_STATE_IMPLICITLY_OPEN);
         }
     }
@@ -640,6 +651,7 @@ static uint16_t zns_set_zd_ext(NvmeNamespace *ns, NvmeZone *zone)
         }
         zns_aor_inc_active(ns);
         zone->d.za |= NVME_ZA_ZD_EXT_VALID;
+
         zns_assign_zone_state(ns, zone, NVME_ZONE_STATE_CLOSED);
         return NVME_SUCCESS;
     }
@@ -1173,17 +1185,20 @@ static uint16_t zns_write(FemuCtrl *n, NvmeNamespace *ns, NvmeCmd *cmd,
     NvmeZone *zone;
     NvmeZonedResult *res = (NvmeZonedResult *)&req->cqe;
     uint16_t status;
+    
 
     assert(n->zoned);
     req->is_write = true;
 
     status = nvme_check_mdts(n, data_size);
     if (status) {
+        femu_err("hoonhwi:*********ZONE Check MDTS Error*********\n");
         goto err;
     }
 
     status = zns_check_bounds(ns, slba, nlb);
     if (status) {
+        femu_err("hoonhwi:*********ZONE Check Bounds Error*********\n");
         goto err;
     }
 
@@ -1196,6 +1211,7 @@ static uint16_t zns_write(FemuCtrl *n, NvmeNamespace *ns, NvmeCmd *cmd,
 
     status = zns_auto_open_zone(ns, zone);
     if (status) {
+        femu_err("hoonhwi:*********ZONE Open Error*********\n");
         goto err;
     }
 
@@ -1205,6 +1221,7 @@ static uint16_t zns_write(FemuCtrl *n, NvmeNamespace *ns, NvmeCmd *cmd,
 
     status = zns_map_dptr(n, data_size, req);
     if (status) {
+        femu_err("hoonhwi:*********ZONE Map DPTR Error*********\n");
         goto err;
     }
 
@@ -1223,14 +1240,20 @@ static uint16_t zns_io_cmd(FemuCtrl *n, NvmeNamespace *ns, NvmeCmd *cmd,
 {
     switch (cmd->opcode) {
     case NVME_CMD_READ:
+        usleep(n->zone_array->d.rd_lat_ns*1000); // HH
+
         return zns_read(n, ns, cmd, req);
     case NVME_CMD_WRITE:
+        usleep(n->zone_array->d.wr_lat_ns*1000); // HH
+
         return zns_write(n, ns, cmd, req);
     case NVME_CMD_ZONE_MGMT_SEND:
         return zns_zone_mgmt_send(n, req);
     case NVME_CMD_ZONE_MGMT_RECV:
         return zns_zone_mgmt_recv(n, req);
     case NVME_CMD_ZONE_APPEND:
+        usleep(n->zone_array->d.wr_lat_ns*1000); // HH
+
         return zns_zone_append(n, req);
     }
 
@@ -1289,6 +1312,7 @@ static int zns_start_ctrl(FemuCtrl *n)
 
 static void zns_init(FemuCtrl *n, Error **errp)
 {
+    printf("hoon: zns init\n");
     NvmeNamespace *ns = &n->namespaces[0];
 
     zns_set_ctrl(n);

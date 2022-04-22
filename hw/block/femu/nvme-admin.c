@@ -948,20 +948,149 @@ static uint16_t nvme_format(FemuCtrl *n, NvmeCmd *cmd)
     return nvme_format_namespace(ns, lba_idx, meta_loc, pil, pi, sec_erase);
 }
 
+
+// by HH: Change Zone's Flash type -------------------------------------------------------
+#include "zns/zns.h"
+static uint16_t nvme_change_flash_type(FemuCtrl *n, NvmeCmd *cmd)
+{
+    h_log("cmdw10: %d\n", cmd->cdw10);
+    h_log("cmdw11: %d\n", cmd->cdw11);
+    h_log("Number of Zones: %d\n", n->num_zones);
+    h_log("Flash type: %d\n", n->zone_array->d.zone_flash_type);
+
+    if(cmd->cdw10 > n->num_zones)
+    {
+        femu_err("Invalid zone (cdw10: 0x%x)\n", cmd->cdw10);
+        return NVME_ZONE_BOUNDARY_ERROR;
+    }
+    if(cmd->cdw11 > 4 || cmd->cdw11==0)
+    {
+        femu_err("Invalid type (cdw11: 0x%x)\n", cmd->cdw11);
+        return NVME_ZONE_BOUNDARY_ERROR;
+    }
+
+    NvmeZone *zone;
+
+    zone = n->zone_array;
+    zone += cmd->cdw10;
+
+    zone->d.zt = NVME_ZONE_TYPE_SEQ_WRITE;
+    zns_set_zone_state(zone, NVME_ZONE_STATE_EMPTY);
+    zone->d.za = 0;
+    zone->d.wp = zone->d.zslba;
+    zone->d.zone_flash_type = cmd->cdw11;
+    
+    zone->w_ptr = zone->d.zslba;
+    
+    if (zone->d.zone_flash_type == TLC) {
+    // zone->d.upg_rd_lat_ns = TLC_UPPER_PAGE_READ_LATENCY_NS;
+    // zone->d.cpg_rd_lat_ns = TLC_CENTER_PAGE_READ_LATENCY_NS;
+    // zone->d.lpg_rd_lat_ns = TLC_LOWER_PAGE_READ_LATENCY_NS;
+    // zone->d.upg_wr_lat_ns = TLC_UPPER_PAGE_WRITE_LATENCY_NS;
+    // zone->d.cpg_wr_lat_ns = TLC_CENTER_PAGE_WRITE_LATENCY_NS;
+    // zone->d.lpg_wr_lat_ns = TLC_LOWER_PAGE_WRITE_LATENCY_NS;
+    // zone->d.blk_er_lat_ns = TLC_BLOCK_ERASE_LATENCY_NS;
+    // zone->d.chnl_pg_xfer_lat_ns = TLC_CHNL_PAGE_TRANSFER_LATENCY_NS;
+    h_log("rd_lat:%ld wr_lat:%ld er_lat:%ld chnl_lat:%ld\n",
+        zone->d.rd_lat_ns, zone->d.wr_lat_ns, zone->d.er_lat_ns, zone->d.chnl_pg_xfer_lat_ns);
+    } else if (zone->d.zone_flash_type == QLC) {
+    // zone->d.upg_rd_lat_ns  = QLC_UPPER_PAGE_READ_LATENCY_NS;
+    // zone->d.cupg_rd_lat_ns = QLC_CENTER_UPPER_PAGE_READ_LATENCY_NS;
+    // zone->d.clpg_rd_lat_ns = QLC_CENTER_LOWER_PAGE_READ_LATENCY_NS;
+    // zone->d.lpg_rd_lat_ns  = QLC_LOWER_PAGE_READ_LATENCY_NS;
+    // zone->d.upg_wr_lat_ns  = QLC_UPPER_PAGE_WRITE_LATENCY_NS;
+    // zone->d.cupg_wr_lat_ns = QLC_CENTER_UPPER_PAGE_WRITE_LATENCY_NS;
+    // zone->d.clpg_wr_lat_ns = QLC_CENTER_LOWER_PAGE_WRITE_LATENCY_NS;
+    // zone->d.lpg_wr_lat_ns  = QLC_LOWER_PAGE_WRITE_LATENCY_NS;
+    // zone->d.blk_er_lat_ns  = QLC_BLOCK_ERASE_LATENCY_NS;
+    // zone->d.chnl_pg_xfer_lat_ns = QLC_CHNL_PAGE_TRANSFER_LATENCY_NS;
+    h_log("rd_lat:%ld wr_lat:%ld er_lat:%ld chnl_lat:%ld\n",
+         zone->d.rd_lat_ns, zone->d.wr_lat_ns,zone->d.er_lat_ns, zone->d.chnl_pg_xfer_lat_ns);
+    } else if (zone->d.zone_flash_type == MLC) {
+    // zone->d.upg_rd_lat_ns = MLC_UPPER_PAGE_READ_LATENCY_NS;
+    // zone->d.lpg_rd_lat_ns = MLC_LOWER_PAGE_READ_LATENCY_NS;
+    // zone->d.upg_wr_lat_ns = MLC_UPPER_PAGE_WRITE_LATENCY_NS;
+    // zone->d.lpg_wr_lat_ns = MLC_LOWER_PAGE_WRITE_LATENCY_NS;
+    // zone->d.blk_er_lat_ns = MLC_BLOCK_ERASE_LATENCY_NS;
+    // zone->d.chnl_pg_xfer_lat_ns = MLC_CHNL_PAGE_TRANSFER_LATENCY_NS;
+    h_log("rd_lat:%ld wr_lat:%ld er_lat:%ld chnl_lat:%ld\n",
+        zone->d.rd_lat_ns, zone->d.wr_lat_ns, zone->d.er_lat_ns, zone->d.chnl_pg_xfer_lat_ns);
+    } else if (zone->d.zone_flash_type == SLC) {
+    // zone->d.upg_rd_lat_ns = SLC_PAGE_READ_LATENCY_NS;
+    // zone->d.lpg_rd_lat_ns = SLC_PAGE_READ_LATENCY_NS;
+    // zone->d.upg_wr_lat_ns = SLC_PAGE_WRITE_LATENCY_NS;
+    // zone->d.lpg_wr_lat_ns = SLC_PAGE_WRITE_LATENCY_NS;
+    // zone->d.blk_er_lat_ns = SLC_BLOCK_ERASE_LATENCY_NS;
+    // zone->d.chnl_pg_xfer_lat_ns = SLC_CHNL_PAGE_TRANSFER_LATENCY_NS;
+    h_log("rd_lat:%ld wr_lat:%ld er_lat:%ld chnl_lat:%ld\n",
+        zone->d.rd_lat_ns, zone->d.wr_lat_ns, zone->d.er_lat_ns, zone->d.chnl_pg_xfer_lat_ns);
+    }
+    
+    h_log("femuctrl after n->flash_type: %d\n", zone->d.zone_flash_type);
+
+    return NVME_SUCCESS;
+}
+// ----------------------------------------------------------------------------------------
+
+
+// by HH: print zone state
+static uint16_t nvme_print_flash_type(FemuCtrl *n, NvmeCmd *cmd)
+{
+    NvmeZone *zone;
+    zone = n->zone_array;
+    printf("\n");
+    printf("%16sslba %4scapacity %4swptr %6sstate %5stype %4sfalsh\n",
+    "","","","","","");
+    for(int i=0; i<n->num_zones; i++, zone++)
+    {
+        printf("  [zone#%2d] 0x%06lx | 0x%05lx | 0x%06lx | %9s | %6s | %s\n",
+        i,zone->d.zslba, zone->d.zcap, zone->d.wp,
+        zone->d.zs==0?"Rsrved":zone->d.zs==0x10?"Empty":zone->d.zs==20?"ImplicOpen"\
+        :zone->d.zs==30?"ExpliOpen":zone->d.zs==40?"Closed":zone->d.zs==0xD0?"RdOnly"\
+        :zone->d.zs==0xE0?"Full":zone->d.zs==0xF0?"Offline":"Unknown"
+        ,zone->d.zt==0?"Rsrved":"SeqW"
+        ,zone->d.zone_flash_type==1?"SLC":zone->d.zone_flash_type==2?"MLC"\
+        :zone->d.zone_flash_type==3?"TLC":zone->d.zone_flash_type==4?"QLC":"Unknown");
+    }
+
+    return NVME_SUCCESS;
+}
+// ----------------------------------------------------------------------------------------
+
+
+
 static uint16_t nvme_admin_cmd(FemuCtrl *n, NvmeCmd *cmd, NvmeCqe *cqe)
 {
     switch (cmd->opcode) {
     case NVME_ADM_CMD_FEMU_DEBUG:
-        n->upg_rd_lat_ns = le64_to_cpu(cmd->cdw10);
-        n->lpg_rd_lat_ns = le64_to_cpu(cmd->cdw11);
-        n->upg_wr_lat_ns = le64_to_cpu(cmd->cdw12);
-        n->lpg_wr_lat_ns = le64_to_cpu(cmd->cdw13);
-        n->blk_er_lat_ns = le64_to_cpu(cmd->cdw14);
-        n->chnl_pg_xfer_lat_ns = le64_to_cpu(cmd->cdw15);
-        femu_log("tRu=%" PRId64 ", tRl=%" PRId64 ", tWu=%" PRId64 ", "
-                "tWl=%" PRId64 ", tBERS=%" PRId64 ", tCHNL=%" PRId64 "\n",
-                n->upg_rd_lat_ns, n->lpg_rd_lat_ns, n->upg_wr_lat_ns,
-                n->lpg_wr_lat_ns, n->blk_er_lat_ns, n->chnl_pg_xfer_lat_ns);
+        // n->upg_rd_lat_ns = le64_to_cpu(cmd->cdw10);
+        // n->lpg_rd_lat_ns = le64_to_cpu(cmd->cdw11);
+        // n->upg_wr_lat_ns = le64_to_cpu(cmd->cdw12);
+        // n->lpg_wr_lat_ns = le64_to_cpu(cmd->cdw13);
+        // n->blk_er_lat_ns = le64_to_cpu(cmd->cdw14);
+        // n->chnl_pg_xfer_lat_ns = le64_to_cpu(cmd->cdw15);
+        // femu_log("tRu=%" PRId64 ", tRl=%" PRId64 ", tWu=%" PRId64 ", "
+        //         "tWl=%" PRId64 ", tBERS=%" PRId64 ", tCHNL=%" PRId64 "\n",
+        //         n->upg_rd_lat_ns, n->lpg_rd_lat_ns, n->upg_wr_lat_ns,
+        //         n->lpg_wr_lat_ns, n->blk_er_lat_ns, n->chnl_pg_xfer_lat_ns);
+
+        //by HH: print latency ----------------------------------------------------------------
+        if( cmd->cdw10 > n->num_zones )
+        {
+            femu_err("Invalid Zone (cdw10:%d)\n", cmd->cdw10);
+            return NVME_ZONE_BOUNDARY_ERROR;
+        }
+
+        NvmeZone *zone;
+        zone = n->zone_array + cmd->cdw10;
+        zone->d.rd_lat_ns = le64_to_cpu(cmd->cdw10);
+        zone->d.wr_lat_ns = le64_to_cpu(cmd->cdw12);
+        zone->d.er_lat_ns = le64_to_cpu(cmd->cdw14);
+        zone->d.chnl_pg_xfer_lat_ns = le64_to_cpu(cmd->cdw15);
+        femu_log("tR=%" PRId64 ",tW=%" PRId64 ", tERS=%" PRId64 ", tCHNL=%" PRId64 "\n",
+                zone->d.rd_lat_ns, zone->d.wr_lat_ns, zone->d.er_lat_ns, zone->d.chnl_pg_xfer_lat_ns);
+        // ----------------------------------------------------------------------------------------
+
         return NVME_SUCCESS;
     case NVME_ADM_CMD_DELETE_SQ:
         femu_debug("admin cmd,del_sq\n");
@@ -1004,6 +1133,14 @@ static uint16_t nvme_admin_cmd(FemuCtrl *n, NvmeCmd *cmd, NvmeCqe *cqe)
     case NVME_ADM_CMD_SECURITY_SEND:
     case NVME_ADM_CMD_SECURITY_RECV:
         return NVME_INVALID_OPCODE | NVME_DNR;
+
+    // by HH: Vendor specific cmd ------------------------------------------------------------
+    case NVME_ADM_CMD_CHANGE_FLTYPE:
+        return nvme_change_flash_type(n, cmd);
+    case NVME_ADM_CMD_PRINT_FLTYPE:
+        return nvme_print_flash_type(n, cmd);
+    // ----------------------------------------------------------------------------------------
+
     default:
         if (n->ext_ops.admin_cmd) {
             return n->ext_ops.admin_cmd(n, cmd);

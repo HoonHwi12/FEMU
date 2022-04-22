@@ -3,6 +3,10 @@
 
 #include "./nvme.h"
 
+//by HH ------------------------------------------
+#include "zns/zns.h"
+//--------------------------------------------------
+
 #define NVME_SPEC_VER (0x00010400)
 
 static void nvme_clear_ctrl(FemuCtrl *n, bool shutdown)
