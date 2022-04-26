@@ -3,6 +3,10 @@
 
 #include "../nvme.h"
 
+extern double d_rd_lat_s;
+extern double d_wr_lat_s;
+extern double d_er_lat_s;
+
 typedef struct QEMU_PACKED NvmeZonedResult {
     uint64_t slba;
 } NvmeZonedResult;
@@ -59,20 +63,21 @@ typedef struct QEMU_PACKED NvmeZoneDescr {
     uint8_t     zt;
     uint8_t     zs;
     uint8_t     za;
-    uint8_t     rsvd3[5];
+    uint8_t     rsvd3[4];
+
+    //by HH
+    uint8_t     zone_flash_type;
+
     uint64_t    zcap;
     uint64_t    zslba;
     uint64_t    wp;
-    uint8_t     rsvd32[32];
+    //uint8_t     rsvd32[32];
 
-    // by HH -----------------------------------------------------------------
-    uint8_t     zone_flash_type;
-    
-    int64_t rd_lat_ns;
-    int64_t wr_lat_ns;
-    int64_t er_lat_ns;
-    int64_t chnl_pg_xfer_lat_ns;
-    // ----------------------------------------------------------------------
+    // by HH
+    uint64_t rd_lat_ns;
+    uint64_t wr_lat_ns;
+    uint64_t er_lat_ns;
+    uint64_t chnl_pg_xfer_lat_ns;
 } NvmeZoneDescr;
 
 typedef enum NvmeZoneState {

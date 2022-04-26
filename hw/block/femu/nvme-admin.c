@@ -949,16 +949,13 @@ static uint16_t nvme_format(FemuCtrl *n, NvmeCmd *cmd)
 }
 
 
-// by HH: Change Zone's Flash type -------------------------------------------------------
+
+// by HH: change flash type / print zone /////////////////////////////////////////////
 #include "zns/zns.h"
 static uint16_t nvme_change_flash_type(FemuCtrl *n, NvmeCmd *cmd)
 {
-    h_log("cmdw10: %d\n", cmd->cdw10);
-    h_log("cmdw11: %d\n", cmd->cdw11);
-    h_log("Number of Zones: %d\n", n->num_zones);
-    h_log("Flash type: %d\n", n->zone_array->d.zone_flash_type);
 
-    if(cmd->cdw10 > n->num_zones)
+    if(cmd->cdw10 > n->num_zones || cmd->cdw10==0)
     {
         femu_err("Invalid zone (cdw10: 0x%x)\n", cmd->cdw10);
         return NVME_ZONE_BOUNDARY_ERROR;
@@ -969,93 +966,156 @@ static uint16_t nvme_change_flash_type(FemuCtrl *n, NvmeCmd *cmd)
         return NVME_ZONE_BOUNDARY_ERROR;
     }
 
-    NvmeZone *zone;
+    uint64_t zone_size = n->zone_size;
+    uint64_t capacity = n->num_zones * zone_size;
+    uint64_t start = zone_size*cmd->cdw10;
 
+    NvmeZone *zone;
     zone = n->zone_array;
     zone += cmd->cdw10;
 
+    if (start + zone_size > capacity) {
+        zone_size = capacity - start;
+    }
     zone->d.zt = NVME_ZONE_TYPE_SEQ_WRITE;
     zns_set_zone_state(zone, NVME_ZONE_STATE_EMPTY);
-    zone->d.za = 0;
-    zone->d.wp = zone->d.zslba;
+    zone->d.za = 0; // zone not active
+    zone->d.zcap = n->zone_capacity;
+    zone->d.zslba = start;
+    zone->d.wp = start;
     zone->d.zone_flash_type = cmd->cdw11;
-    
-    zone->w_ptr = zone->d.zslba;
-    
+    //n->flash_type = cmd->cdw11;
+    zone->w_ptr = start;
+
+
     if (zone->d.zone_flash_type == TLC) {
-    // zone->d.upg_rd_lat_ns = TLC_UPPER_PAGE_READ_LATENCY_NS;
-    // zone->d.cpg_rd_lat_ns = TLC_CENTER_PAGE_READ_LATENCY_NS;
-    // zone->d.lpg_rd_lat_ns = TLC_LOWER_PAGE_READ_LATENCY_NS;
-    // zone->d.upg_wr_lat_ns = TLC_UPPER_PAGE_WRITE_LATENCY_NS;
-    // zone->d.cpg_wr_lat_ns = TLC_CENTER_PAGE_WRITE_LATENCY_NS;
-    // zone->d.lpg_wr_lat_ns = TLC_LOWER_PAGE_WRITE_LATENCY_NS;
-    // zone->d.blk_er_lat_ns = TLC_BLOCK_ERASE_LATENCY_NS;
-    // zone->d.chnl_pg_xfer_lat_ns = TLC_CHNL_PAGE_TRANSFER_LATENCY_NS;
-    h_log("rd_lat:%ld wr_lat:%ld er_lat:%ld chnl_lat:%ld\n",
-        zone->d.rd_lat_ns, zone->d.wr_lat_ns, zone->d.er_lat_ns, zone->d.chnl_pg_xfer_lat_ns);
+        zone->d.rd_lat_ns = TLC_UPPER_PAGE_READ_LATENCY_NS;
+        zone->d.wr_lat_ns = TLC_UPPER_PAGE_WRITE_LATENCY_NS;
+        zone->d.er_lat_ns = TLC_BLOCK_ERASE_LATENCY_NS;
+        zone->d.chnl_pg_xfer_lat_ns = TLC_CHNL_PAGE_TRANSFER_LATENCY_NS;
     } else if (zone->d.zone_flash_type == QLC) {
-    // zone->d.upg_rd_lat_ns  = QLC_UPPER_PAGE_READ_LATENCY_NS;
-    // zone->d.cupg_rd_lat_ns = QLC_CENTER_UPPER_PAGE_READ_LATENCY_NS;
-    // zone->d.clpg_rd_lat_ns = QLC_CENTER_LOWER_PAGE_READ_LATENCY_NS;
-    // zone->d.lpg_rd_lat_ns  = QLC_LOWER_PAGE_READ_LATENCY_NS;
-    // zone->d.upg_wr_lat_ns  = QLC_UPPER_PAGE_WRITE_LATENCY_NS;
-    // zone->d.cupg_wr_lat_ns = QLC_CENTER_UPPER_PAGE_WRITE_LATENCY_NS;
-    // zone->d.clpg_wr_lat_ns = QLC_CENTER_LOWER_PAGE_WRITE_LATENCY_NS;
-    // zone->d.lpg_wr_lat_ns  = QLC_LOWER_PAGE_WRITE_LATENCY_NS;
-    // zone->d.blk_er_lat_ns  = QLC_BLOCK_ERASE_LATENCY_NS;
-    // zone->d.chnl_pg_xfer_lat_ns = QLC_CHNL_PAGE_TRANSFER_LATENCY_NS;
-    h_log("rd_lat:%ld wr_lat:%ld er_lat:%ld chnl_lat:%ld\n",
-         zone->d.rd_lat_ns, zone->d.wr_lat_ns,zone->d.er_lat_ns, zone->d.chnl_pg_xfer_lat_ns);
+        zone->d.rd_lat_ns  = QLC_UPPER_PAGE_READ_LATENCY_NS;
+        zone->d.wr_lat_ns  = QLC_LOWER_PAGE_WRITE_LATENCY_NS;
+        zone->d.er_lat_ns  = QLC_BLOCK_ERASE_LATENCY_NS;
+        zone->d.chnl_pg_xfer_lat_ns = QLC_CHNL_PAGE_TRANSFER_LATENCY_NS;
     } else if (zone->d.zone_flash_type == MLC) {
-    // zone->d.upg_rd_lat_ns = MLC_UPPER_PAGE_READ_LATENCY_NS;
-    // zone->d.lpg_rd_lat_ns = MLC_LOWER_PAGE_READ_LATENCY_NS;
-    // zone->d.upg_wr_lat_ns = MLC_UPPER_PAGE_WRITE_LATENCY_NS;
-    // zone->d.lpg_wr_lat_ns = MLC_LOWER_PAGE_WRITE_LATENCY_NS;
-    // zone->d.blk_er_lat_ns = MLC_BLOCK_ERASE_LATENCY_NS;
-    // zone->d.chnl_pg_xfer_lat_ns = MLC_CHNL_PAGE_TRANSFER_LATENCY_NS;
-    h_log("rd_lat:%ld wr_lat:%ld er_lat:%ld chnl_lat:%ld\n",
-        zone->d.rd_lat_ns, zone->d.wr_lat_ns, zone->d.er_lat_ns, zone->d.chnl_pg_xfer_lat_ns);
-    } else if (zone->d.zone_flash_type == SLC) {
-    // zone->d.upg_rd_lat_ns = SLC_PAGE_READ_LATENCY_NS;
-    // zone->d.lpg_rd_lat_ns = SLC_PAGE_READ_LATENCY_NS;
-    // zone->d.upg_wr_lat_ns = SLC_PAGE_WRITE_LATENCY_NS;
-    // zone->d.lpg_wr_lat_ns = SLC_PAGE_WRITE_LATENCY_NS;
-    // zone->d.blk_er_lat_ns = SLC_BLOCK_ERASE_LATENCY_NS;
-    // zone->d.chnl_pg_xfer_lat_ns = SLC_CHNL_PAGE_TRANSFER_LATENCY_NS;
-    h_log("rd_lat:%ld wr_lat:%ld er_lat:%ld chnl_lat:%ld\n",
-        zone->d.rd_lat_ns, zone->d.wr_lat_ns, zone->d.er_lat_ns, zone->d.chnl_pg_xfer_lat_ns);
+        zone->d.rd_lat_ns = MLC_UPPER_PAGE_READ_LATENCY_NS;
+        zone->d.wr_lat_ns = MLC_LOWER_PAGE_WRITE_LATENCY_NS;
+        zone->d.er_lat_ns = MLC_BLOCK_ERASE_LATENCY_NS;
+        zone->d.chnl_pg_xfer_lat_ns = MLC_CHNL_PAGE_TRANSFER_LATENCY_NS;
     }
-    
-    h_log("femuctrl after n->flash_type: %d\n", zone->d.zone_flash_type);
 
     return NVME_SUCCESS;
 }
-// ----------------------------------------------------------------------------------------
 
 
-// by HH: print zone state
 static uint16_t nvme_print_flash_type(FemuCtrl *n, NvmeCmd *cmd)
 {
     NvmeZone *zone;
     zone = n->zone_array;
+
     printf("\n");
-    printf("%16sslba %4scapacity %4swptr %6sstate %5stype %4sfalsh\n",
-    "","","","","","");
+    printf("%14sslba %4scapacity %5swptr %5sstate %5stype %5sfalsh%5slatency w/r/e\n",
+    "","","","","","","");
     for(int i=0; i<n->num_zones; i++, zone++)
     {
-        printf("  [zone#%2d] 0x%06lx | 0x%05lx | 0x%06lx | %9s | %6s | %s\n",
+        printf("   [zone#%2d] 0x%06lx | 0x%05lx | 0x%06lx | %9s | %6s | %s | %.3ld %.3ld %.3ld\n",
         i,zone->d.zslba, zone->d.zcap, zone->d.wp,
-        zone->d.zs==0?"Rsrved":zone->d.zs==0x10?"Empty":zone->d.zs==20?"ImplicOpen"\
-        :zone->d.zs==30?"ExpliOpen":zone->d.zs==40?"Closed":zone->d.zs==0xD0?"RdOnly"\
-        :zone->d.zs==0xE0?"Full":zone->d.zs==0xF0?"Offline":"Unknown"
+        zone->d.zs==0?"Rsrved":zone->d.zs==1?"Empty":zone->d.zs==2?"ImplicOpen"\
+        :zone->d.zs==3?"ExpliOpen":zone->d.zs==4?"Closed":zone->d.zs==0xD?"RdOnly"\
+        :zone->d.zs==0xE?"Full":zone->d.zs==0xF?"Offline":"Unknown"
         ,zone->d.zt==0?"Rsrved":"SeqW"
         ,zone->d.zone_flash_type==1?"SLC":zone->d.zone_flash_type==2?"MLC"\
-        :zone->d.zone_flash_type==3?"TLC":zone->d.zone_flash_type==4?"QLC":"Unknown");
+        :zone->d.zone_flash_type==3?"TLC":zone->d.zone_flash_type==4?"QLC":"Unknown"
+        ,zone->d.wr_lat_ns, zone->d.rd_lat_ns, zone->d.er_lat_ns);
     }
 
     return NVME_SUCCESS;
 }
-// ----------------------------------------------------------------------------------------
+
+static uint16_t nvme_zconfig_control(FemuCtrl *n, NvmeCmd *cmd)
+{
+    if(cmd->cdw10 != 0x899) n->max_active_zones = cmd->cdw10;
+    if(cmd->cdw11 != 0x899) n->max_open_zones = cmd->cdw11;
+
+    NvmeNamespace *ns = &n->namespaces[0];
+
+    // by HH: re-initialize zone
+    NvmeIdNsZoned *id_ns_z;
+
+    uint64_t start = 0, zone_size = n->zone_size;
+    uint64_t capacity = n->num_zones * zone_size;
+    NvmeZone *zone;
+    int i;
+
+    n->zone_array = g_new0(NvmeZone, n->num_zones);
+    if (n->zd_extension_size) {
+        n->zd_extensions = g_malloc0(n->zd_extension_size * n->num_zones);
+    }
+
+    QTAILQ_INIT(&n->exp_open_zones);
+    QTAILQ_INIT(&n->imp_open_zones);
+    QTAILQ_INIT(&n->closed_zones);
+    QTAILQ_INIT(&n->full_zones);
+
+    zone = n->zone_array;
+    for (i = 0; i < n->num_zones; i++, zone++) {
+        if (start + zone_size > capacity) {
+            zone_size = capacity - start;
+        }
+        zone->d.zt = NVME_ZONE_TYPE_SEQ_WRITE;
+        zns_set_zone_state(zone, NVME_ZONE_STATE_EMPTY);
+        zone->d.za = 0;
+        zone->d.zcap = n->zone_capacity;
+        zone->d.zslba = start;
+        zone->d.wp = start;
+        zone->d.zone_flash_type = n->flash_type;
+        zone->w_ptr = start;
+        start += zone_size;
+    }
+
+    n->zone_size_log2 = 0;
+    if (is_power_of_2(n->zone_size)) {
+        n->zone_size_log2 = 63 - clz64(n->zone_size);
+    }
+
+    id_ns_z = g_malloc0(sizeof(NvmeIdNsZoned));
+
+    /* MAR/MOR are zeroes-based, 0xffffffff means no limit */
+    id_ns_z->mar = cpu_to_le32(n->max_active_zones - 1);
+    id_ns_z->mor = cpu_to_le32(n->max_open_zones - 1);
+    id_ns_z->zoc = 0;
+    id_ns_z->ozcs = n->cross_zone_read ? 0x01 : 0x00;
+
+    id_ns_z->lbafe[0].zsze = cpu_to_le64(n->zone_size);
+    id_ns_z->lbafe[0].zdes = n->zd_extension_size >> 6; /* Units of 64B */
+
+    n->csi = NVME_CSI_ZONED;
+    ns->id_ns.nsze = cpu_to_le64(n->num_zones * n->zone_size);
+    ns->id_ns.ncap = ns->id_ns.nsze;
+    ns->id_ns.nuse = ns->id_ns.ncap;
+
+    /* NvmeIdNs */
+    /*
+     * The device uses the BDRV_BLOCK_ZERO flag to determine the "deallocated"
+     * status of logical blocks. Since the spec defines that logical blocks
+     * SHALL be deallocated when then zone is in the Empty or Offline states,
+     * we can only support DULBE if the zone size is a multiple of the
+     * calculated NPDG.
+     */
+    if (n->zone_size % (ns->id_ns.npdg + 1)) {
+        femu_err("the zone size (%"PRIu64" blocks) is not a multiple of the"
+                 "calculated deallocation granularity (%"PRIu16" blocks); DULBE"
+                 "support disabled", n->zone_size, ns->id_ns.npdg + 1);
+        ns->id_ns.nsfeat &= ~0x4;
+        return NVME_ZONE_BOUNDARY_ERROR;
+    }
+
+    n->id_ns_zoned = id_ns_z;
+
+    return NVME_SUCCESS;
+}
+///////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 
 
@@ -1063,34 +1123,16 @@ static uint16_t nvme_admin_cmd(FemuCtrl *n, NvmeCmd *cmd, NvmeCqe *cqe)
 {
     switch (cmd->opcode) {
     case NVME_ADM_CMD_FEMU_DEBUG:
-        // n->upg_rd_lat_ns = le64_to_cpu(cmd->cdw10);
-        // n->lpg_rd_lat_ns = le64_to_cpu(cmd->cdw11);
-        // n->upg_wr_lat_ns = le64_to_cpu(cmd->cdw12);
-        // n->lpg_wr_lat_ns = le64_to_cpu(cmd->cdw13);
-        // n->blk_er_lat_ns = le64_to_cpu(cmd->cdw14);
-        // n->chnl_pg_xfer_lat_ns = le64_to_cpu(cmd->cdw15);
-        // femu_log("tRu=%" PRId64 ", tRl=%" PRId64 ", tWu=%" PRId64 ", "
-        //         "tWl=%" PRId64 ", tBERS=%" PRId64 ", tCHNL=%" PRId64 "\n",
-        //         n->upg_rd_lat_ns, n->lpg_rd_lat_ns, n->upg_wr_lat_ns,
-        //         n->lpg_wr_lat_ns, n->blk_er_lat_ns, n->chnl_pg_xfer_lat_ns);
-
-        //by HH: print latency ----------------------------------------------------------------
-        if( cmd->cdw10 > n->num_zones )
-        {
-            femu_err("Invalid Zone (cdw10:%d)\n", cmd->cdw10);
-            return NVME_ZONE_BOUNDARY_ERROR;
-        }
-
-        NvmeZone *zone;
-        zone = n->zone_array + cmd->cdw10;
-        zone->d.rd_lat_ns = le64_to_cpu(cmd->cdw10);
-        zone->d.wr_lat_ns = le64_to_cpu(cmd->cdw12);
-        zone->d.er_lat_ns = le64_to_cpu(cmd->cdw14);
-        zone->d.chnl_pg_xfer_lat_ns = le64_to_cpu(cmd->cdw15);
-        femu_log("tR=%" PRId64 ",tW=%" PRId64 ", tERS=%" PRId64 ", tCHNL=%" PRId64 "\n",
-                zone->d.rd_lat_ns, zone->d.wr_lat_ns, zone->d.er_lat_ns, zone->d.chnl_pg_xfer_lat_ns);
-        // ----------------------------------------------------------------------------------------
-
+        n->upg_rd_lat_ns = le64_to_cpu(cmd->cdw10);
+        n->lpg_rd_lat_ns = le64_to_cpu(cmd->cdw11);
+        n->upg_wr_lat_ns = le64_to_cpu(cmd->cdw12);
+        n->lpg_wr_lat_ns = le64_to_cpu(cmd->cdw13);
+        n->blk_er_lat_ns = le64_to_cpu(cmd->cdw14);
+        n->chnl_pg_xfer_lat_ns = le64_to_cpu(cmd->cdw15);
+        femu_log("tRu=%" PRId64 ", tRl=%" PRId64 ", tWu=%" PRId64 ", "
+                "tWl=%" PRId64 ", tBERS=%" PRId64 ", tCHNL=%" PRId64 "\n",
+                n->upg_rd_lat_ns, n->lpg_rd_lat_ns, n->upg_wr_lat_ns,
+                n->lpg_wr_lat_ns, n->blk_er_lat_ns, n->chnl_pg_xfer_lat_ns);
         return NVME_SUCCESS;
     case NVME_ADM_CMD_DELETE_SQ:
         femu_debug("admin cmd,del_sq\n");
@@ -1133,14 +1175,13 @@ static uint16_t nvme_admin_cmd(FemuCtrl *n, NvmeCmd *cmd, NvmeCqe *cqe)
     case NVME_ADM_CMD_SECURITY_SEND:
     case NVME_ADM_CMD_SECURITY_RECV:
         return NVME_INVALID_OPCODE | NVME_DNR;
-
-    // by HH: Vendor specific cmd ------------------------------------------------------------
+    //by HH
     case NVME_ADM_CMD_CHANGE_FLTYPE:
         return nvme_change_flash_type(n, cmd);
+    case NVME_ADM_CMD_CONIFG_CTL:
+        return nvme_zconfig_control(n, cmd);        
     case NVME_ADM_CMD_PRINT_FLTYPE:
         return nvme_print_flash_type(n, cmd);
-    // ----------------------------------------------------------------------------------------
-
     default:
         if (n->ext_ops.admin_cmd) {
             return n->ext_ops.admin_cmd(n, cmd);

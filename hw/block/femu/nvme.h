@@ -331,6 +331,7 @@ enum NvmeAdminCommands {
     // by HH: Vendor Specific admin cmd --------------------------------------------------------------------
     NVME_ADM_CMD_CHANGE_FLTYPE  = 0x89,
     NVME_ADM_CMD_PRINT_FLTYPE   = 0X90,
+    NVME_ADM_CMD_CONIFG_CTL     = 0X91,
     // ------------------------------------------------------------------------------------------------------
 };
 
@@ -1329,6 +1330,7 @@ typedef struct FemuCtrl {
 
     /* Nand Flash Type: SLC/MLC/TLC/QLC/PLC */
     uint8_t         flash_type;
+    
 } FemuCtrl;
 
 typedef struct NvmePollerThreadArgument {

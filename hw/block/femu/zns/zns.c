@@ -1,5 +1,9 @@
 #include "./zns.h"
 
+double d_rd_lat_s=0.1;
+double d_wr_lat_s=0.1;
+double d_er_lat_s=0.1;
+
 #define MIN_DISCARD_GRANULARITY     (4 * KiB)
 #define NVME_DEFAULT_ZONE_SIZE      (128 * MiB)
 #define NVME_DEFAULT_MAX_AZ_SIZE    (128 * KiB)
@@ -22,7 +26,7 @@ static inline NvmeZone *zns_get_zone_by_slba(NvmeNamespace *ns, uint64_t slba)
 }
 
 static int zns_init_zone_geometry(NvmeNamespace *ns, Error **errp)
-{
+{    
     FemuCtrl *n = ns->ctrl;
     uint64_t zone_size, zone_cap;
     uint32_t lbasz = 1 << zns_ns_lbads(ns);
@@ -38,7 +42,7 @@ static int zns_init_zone_geometry(NvmeNamespace *ns, Error **errp)
     } else {
         zone_cap = zone_size;
     }
-
+    
     if (zone_cap > zone_size) {
         femu_err("zone capacity %luB > zone size %luB", zone_cap, zone_size);
         return -1;
@@ -1240,11 +1244,11 @@ static uint16_t zns_io_cmd(FemuCtrl *n, NvmeNamespace *ns, NvmeCmd *cmd,
 {
     switch (cmd->opcode) {
     case NVME_CMD_READ:
-        usleep(n->zone_array->d.rd_lat_ns*1000); // HH
+        usleep(d_rd_lat_s*1e6); // by HH
 
         return zns_read(n, ns, cmd, req);
     case NVME_CMD_WRITE:
-        usleep(n->zone_array->d.wr_lat_ns*1000); // HH
+        usleep(d_wr_lat_s*1e6); // by HH
 
         return zns_write(n, ns, cmd, req);
     case NVME_CMD_ZONE_MGMT_SEND:
@@ -1252,7 +1256,7 @@ static uint16_t zns_io_cmd(FemuCtrl *n, NvmeNamespace *ns, NvmeCmd *cmd,
     case NVME_CMD_ZONE_MGMT_RECV:
         return zns_zone_mgmt_recv(n, req);
     case NVME_CMD_ZONE_APPEND:
-        usleep(n->zone_array->d.wr_lat_ns*1000); // HH
+        usleep(d_wr_lat_s*1e6); // by HH
 
         return zns_zone_append(n, req);
     }
@@ -1312,7 +1316,6 @@ static int zns_start_ctrl(FemuCtrl *n)
 
 static void zns_init(FemuCtrl *n, Error **errp)
 {
-    printf("hoon: zns init\n");
     NvmeNamespace *ns = &n->namespaces[0];
 
     zns_set_ctrl(n);
@@ -1324,6 +1327,15 @@ static void zns_init(FemuCtrl *n, Error **errp)
     }
 
     zns_init_zone_identify(n, ns, 0);
+
+    // by HH: set latency at initial state ////////////////////////////
+    NvmeZone *zone = n->zone_array;
+    for(int i=0; i < n->num_zones; i++, zone++)
+    {
+        zone->d.zone_flash_type = n->flash_type;
+    }
+    set_latency(n);
+    ///////////////////////////////////////////////////////////////////
 }
 
 static void zns_exit(FemuCtrl *n)
