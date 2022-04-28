@@ -1,9 +1,5 @@
 #include "./zns.h"
 
-double d_rd_lat_s=0.1;
-double d_wr_lat_s=0.1;
-double d_er_lat_s=0.1;
-
 #define MIN_DISCARD_GRANULARITY     (4 * KiB)
 #define NVME_DEFAULT_ZONE_SIZE      (128 * MiB)
 #define NVME_DEFAULT_MAX_AZ_SIZE    (128 * KiB)
@@ -1244,19 +1240,17 @@ static uint16_t zns_io_cmd(FemuCtrl *n, NvmeNamespace *ns, NvmeCmd *cmd,
 {
     switch (cmd->opcode) {
     case NVME_CMD_READ:
-        usleep(d_rd_lat_s*1e6); // by HH
-
+        usleep(n->zone_array->d.rd_lat_ns*1e-3); // by HH
         return zns_read(n, ns, cmd, req);
     case NVME_CMD_WRITE:
-        usleep(d_wr_lat_s*1e6); // by HH
-
+        usleep(n->zone_array->d.wr_lat_ns*1e-3); // by HH
         return zns_write(n, ns, cmd, req);
     case NVME_CMD_ZONE_MGMT_SEND:
         return zns_zone_mgmt_send(n, req);
     case NVME_CMD_ZONE_MGMT_RECV:
         return zns_zone_mgmt_recv(n, req);
     case NVME_CMD_ZONE_APPEND:
-        usleep(d_wr_lat_s*1e6); // by HH
+        usleep(n->zone_array->d.wr_lat_ns*1e-3); // by HH
 
         return zns_zone_append(n, req);
     }

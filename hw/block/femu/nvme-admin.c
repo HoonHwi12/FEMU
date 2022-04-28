@@ -1015,7 +1015,7 @@ static uint16_t nvme_print_flash_type(FemuCtrl *n, NvmeCmd *cmd)
     zone = n->zone_array;
 
     printf("\n");
-    printf("%14sslba %4scapacity %5swptr %5sstate %5stype %5sfalsh%5slatency w/r/e\n",
+    printf("%15sslba %3scapacity %4swptr %6sstate %6stype %2sfalsh%4slatency_ns w/r/e\n",
     "","","","","","","");
     for(int i=0; i<n->num_zones; i++, zone++)
     {
@@ -1112,6 +1112,9 @@ static uint16_t nvme_zconfig_control(FemuCtrl *n, NvmeCmd *cmd)
     }
 
     n->id_ns_zoned = id_ns_z;
+
+    h_log("max active: %d\n", n->max_active_zones );
+    h_log("max open: %d\n", n->max_open_zones );
 
     return NVME_SUCCESS;
 }

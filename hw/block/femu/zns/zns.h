@@ -67,6 +67,7 @@ typedef struct QEMU_PACKED NvmeZoneDescr {
 
     //by HH
     uint8_t     zone_flash_type;
+    ///////////////////////
 
     uint64_t    zcap;
     uint64_t    zslba;
@@ -78,6 +79,7 @@ typedef struct QEMU_PACKED NvmeZoneDescr {
     uint64_t wr_lat_ns;
     uint64_t er_lat_ns;
     uint64_t chnl_pg_xfer_lat_ns;
+    ///////////////////////
 } NvmeZoneDescr;
 
 typedef enum NvmeZoneState {

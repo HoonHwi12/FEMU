@@ -3,6 +3,29 @@
 
 #define MAX_SUPPORTED_PAGES_PER_BLOCK (512)
 
+/* 
+    * by HH: latency configuration
+*/
+#define SLC_RD_LATENCY_NS       (40000)
+#define SLC_WR_LATENCY_NS       (800000)
+#define SLC_ER_LATENCY_NS       (2000000)
+#define SLC_XFER_LATENCY_NS     (20000)
+
+#define MLC_RD_LATENCY_NS       (SLC_RD_LATENCY_NS * 1.3)
+#define MLC_WR_LATENCY_NS       (SLC_WR_LATENCY_NS * 1.3)
+#define MLC_ER_LATENCY_NS       (3000000)
+#define MLC_XFER_LATENCY_NS     (52433)
+
+#define TLC_RD_LATENCY_NS       (MLC_RD_LATENCY_NS * 1.3)
+#define TLC_WR_LATENCY_NS       (MLC_WR_LATENCY_NS * 1.3)
+#define TLC_ER_LATENCY_NS       (3000000)
+#define TLC_XFER_LATENCY_NS     (52433)
+
+#define QLC_RD_LATENCY_NS       (TLC_RD_LATENCY_NS * 1.3)
+#define QLC_WR_LATENCY_NS       (TLC_WR_LATENCY_NS * 1.3)
+#define QLC_ER_LATENCY_NS       (3000000)
+#define QLC_XFER_LATENCY_NS     (52433)
+
 /*
  * SLC NAND latency numbers in naoseconds
  */

@@ -37,21 +37,27 @@ void set_latency(FemuCtrl *n)
     NvmeZone *zone = n->zone_array;
     for(int i=0; i < n->num_zones; i++, zone++)
     {
-        if (zone->d.zone_flash_type == TLC) {
-            zone->d.rd_lat_ns = TLC_UPPER_PAGE_READ_LATENCY_NS;
-            zone->d.wr_lat_ns = TLC_UPPER_PAGE_WRITE_LATENCY_NS;
-            zone->d.er_lat_ns = TLC_BLOCK_ERASE_LATENCY_NS;
-            zone->d.chnl_pg_xfer_lat_ns = TLC_CHNL_PAGE_TRANSFER_LATENCY_NS;
+        if(zone->d.zone_flash_type == SLC) {
+            zone->d.rd_lat_ns = SLC_RD_LATENCY_NS;
+            zone->d.wr_lat_ns = SLC_WR_LATENCY_NS;
+            zone->d.er_lat_ns = SLC_ER_LATENCY_NS;
+            zone->d.chnl_pg_xfer_lat_ns = SLC_XFER_LATENCY_NS;
+        }
+        else if (zone->d.zone_flash_type == MLC) {
+            zone->d.rd_lat_ns = MLC_RD_LATENCY_NS;
+            zone->d.wr_lat_ns = MLC_WR_LATENCY_NS;
+            zone->d.er_lat_ns = MLC_ER_LATENCY_NS;
+            zone->d.chnl_pg_xfer_lat_ns = MLC_XFER_LATENCY_NS;
+        } else if (zone->d.zone_flash_type == TLC) {
+            zone->d.rd_lat_ns = TLC_RD_LATENCY_NS;
+            zone->d.wr_lat_ns = TLC_WR_LATENCY_NS;
+            zone->d.er_lat_ns = TLC_ER_LATENCY_NS;
+            zone->d.chnl_pg_xfer_lat_ns = TLC_XFER_LATENCY_NS;
         } else if (zone->d.zone_flash_type == QLC) {
-            zone->d.rd_lat_ns  = QLC_UPPER_PAGE_READ_LATENCY_NS;
-            zone->d.wr_lat_ns  = QLC_LOWER_PAGE_WRITE_LATENCY_NS;
-            zone->d.er_lat_ns  = QLC_BLOCK_ERASE_LATENCY_NS;
-            zone->d.chnl_pg_xfer_lat_ns = QLC_CHNL_PAGE_TRANSFER_LATENCY_NS;
-        } else if (zone->d.zone_flash_type == MLC) {
-            zone->d.rd_lat_ns = MLC_UPPER_PAGE_READ_LATENCY_NS;
-            zone->d.wr_lat_ns = MLC_LOWER_PAGE_WRITE_LATENCY_NS;
-            zone->d.er_lat_ns = MLC_BLOCK_ERASE_LATENCY_NS;
-            zone->d.chnl_pg_xfer_lat_ns = MLC_CHNL_PAGE_TRANSFER_LATENCY_NS;
+            zone->d.rd_lat_ns = QLC_RD_LATENCY_NS;
+            zone->d.wr_lat_ns = QLC_WR_LATENCY_NS;
+            zone->d.er_lat_ns = QLC_ER_LATENCY_NS;
+            zone->d.chnl_pg_xfer_lat_ns = QLC_XFER_LATENCY_NS;
         }
     }
     // if (n->flash_type == TLC) {
