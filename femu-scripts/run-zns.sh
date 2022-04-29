@@ -23,7 +23,7 @@ sudo x86_64-softmmu/qemu-system-x86_64 \
     -enable-kvm \
     -cpu host \
     -smp 4 \
-    -m 4G \
+    -m 64G \
     -device virtio-scsi-pci,id=scsi0 \
     -device scsi-hd,drive=hd0 \
     -drive file=$OSIMGF,if=none,aio=native,cache=none,format=qcow2,id=hd0 \

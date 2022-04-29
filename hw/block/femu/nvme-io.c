@@ -131,7 +131,7 @@ static void nvme_process_cq_cpl(void *arg, int index_poller)
     int processed = 0;
     int rc;
 
-    if (BBSSD(n)) {
+    if (BBSSD(n) || ZBBSSD(n)) {
         rp = n->to_poller[index_poller];
     }
 
@@ -305,6 +305,7 @@ void nvme_create_poller(FemuCtrl *n)
     }
 }
 
+#include "zns/zns.h"
 uint16_t nvme_rw(FemuCtrl *n, NvmeNamespace *ns, NvmeCmd *cmd, NvmeRequest *req)
 {
     NvmeRwCmd *rw = (NvmeRwCmd *)cmd;
@@ -322,6 +323,47 @@ uint16_t nvme_rw(FemuCtrl *n, NvmeNamespace *ns, NvmeCmd *cmd, NvmeRequest *req)
     uint64_t elba = slba + nlb;
     uint16_t err;
     int ret;
+
+    // by HH: zone allocate /////////////////////////////////////////////////////////
+    // srand(time(NULL));
+    // uint16_t data_temp;
+    // int index = 0;
+    
+    // if(n->femu_mode == FEMU_ZBBSSD_MODE)
+    // {
+    //     h_log("nvme rw in ZBSSD MODE\n");
+    //     NvmeZone *zone = n->zone_array;
+    //     h_log("here4");
+
+    //     // temporal cmd for test
+    //     data_temp = rand() % 10;
+    //     //if(data_temp == COLD)
+    //     h_log("here2");
+    //     if(data_temp <= 3)
+    //     {
+    //         h_log("debug: fltype(%d)\n", zone->d.zone_flash_type);
+    //         h_log("zs(%d)\n", zone->d.zs);
+    //         h_log("debug: index(%d), numz(%d)\n", index, n->num_zones);
+    //         while(zone->d.zone_flash_type != SLC || zone->d.zs > 1 || index < n->num_zones)
+    //         {
+    //             index++;
+    //             zone++;
+    //             h_log("debug: index(%d), numzone(%d)\n", index, n->num_zones);
+    //         }
+    //         if(index < n->num_zones)
+    //         {
+    //             slba = zone->d.zslba;
+    //             data_offset = slba << data_shift;
+    //             elba = slba + nlb;
+
+    //             h_log("COLD data: allocate to zone#%d, slba#%ld\n", index, slba);
+    //         }
+    //         else h_log("COLD data: no free SLC found, allocate to slba#%ld\n", slba);
+    //     }
+    //     h_log("data temp: %d\n", data_temp);
+    // }
+    //////////////////////////////////////////////////////////////////////////////////////
+
 
     req->is_write = (rw->opcode == NVME_CMD_WRITE) ? 1 : 0;
 
@@ -342,6 +384,7 @@ uint16_t nvme_rw(FemuCtrl *n, NvmeNamespace *ns, NvmeCmd *cmd, NvmeRequest *req)
     req->status = NVME_SUCCESS;
     req->nlb = nlb;
 
+    h_log("nvme io\n");
     ret = backend_rw(n->mbe, &req->qsg, &data_offset, req->is_write);
     if (!ret) {
         return NVME_SUCCESS;

@@ -335,6 +335,11 @@ enum NvmeAdminCommands {
     // ------------------------------------------------------------------------------------------------------
 };
 
+// by HH: data temperature
+#define     HOT     0X100
+#define     COLD    0Xff
+#define     WARM    0x05
+
 enum NvmeIoCommands {
     NVME_CMD_FLUSH              = 0x00,
     NVME_CMD_WRITE              = 0x01,
@@ -1353,6 +1358,7 @@ enum {
     FEMU_BBSSD_MODE = 1,
     FEMU_NOSSD_MODE = 2,
     FEMU_ZNSSD_MODE = 3,
+    FEMU_ZBBSSD_MODE = 4,
     FEMU_SMARTSSD_MODE,
     FEMU_KVSSD_MODE,
 };
@@ -1385,6 +1391,12 @@ static inline bool NOSSD(FemuCtrl *n)
 static inline bool ZNSSD(FemuCtrl *n)
 {
     return (n->femu_mode == FEMU_ZNSSD_MODE);
+}
+
+// by HH
+static inline bool ZBBSSD(FemuCtrl *n)
+{
+    return (n->femu_mode == FEMU_ZBBSSD_MODE);
 }
 
 /* Basic NVMe Queue Pair operation APIs from nvme-util.c */

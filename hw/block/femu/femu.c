@@ -513,6 +513,8 @@ static int nvme_register_extensions(FemuCtrl *n)
         nvme_register_bbssd(n);
     } else if (ZNSSD(n)) {
         nvme_register_znssd(n);
+    } else if (ZBBSSD(n)) { //by HH
+        nvme_register_bbssd(n);
     } else {
     }
 

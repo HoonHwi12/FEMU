@@ -1,5 +1,7 @@
 {
     "files.associations": {
-        "zns.h": "c"
-    }
+        "zns.h": "c",
+        "nvme.h": "c"
+    },
+    "C_Cpp.errorSquiggles": "Disabled"
 }
