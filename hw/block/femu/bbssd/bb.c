@@ -261,6 +261,7 @@ static uint16_t bb_io_cmd(FemuCtrl *n, NvmeNamespace *ns, NvmeCmd *cmd,
     switch (cmd->opcode) {
     case NVME_CMD_READ:
     case NVME_CMD_WRITE:
+        h_log("here3\n");
         return bb_nvme_rw(n, ns, cmd, req);
     default:
         printf("invalid opcode %d\n", cmd->opcode);
@@ -282,6 +283,7 @@ static uint16_t bb_admin_cmd(FemuCtrl *n, NvmeCmd *cmd)
 
 int nvme_register_bbssd(FemuCtrl *n)
 {
+    h_log("here1\n");
     n->ext_ops = (FemuExtCtrlOps) {
         .state            = NULL,
         .init             = bb_init,
