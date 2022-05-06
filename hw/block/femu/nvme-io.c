@@ -18,7 +18,6 @@ static inline NvmeZone *zns_get_zone_by_slba(NvmeNamespace *ns, uint64_t slba)
 {
     FemuCtrl *n = ns->ctrl;
     uint32_t zone_idx = zns_zone_idx(ns, slba);
-    h_log("zone index: %d\n", zone_idx);
 
     assert(zone_idx < n->num_zones);
     return &n->zone_array[zone_idx];
@@ -46,7 +45,7 @@ static void zns_assign_zone_state(NvmeNamespace *ns, NvmeZone *zone,
             ;
         }
     }
-    printf("hoon zns_assign_zone_state\n");
+
     zns_set_zone_state(zone, state);
 
     switch (state) {
@@ -123,7 +122,6 @@ static uint64_t zns_advance_zone_wp(NvmeNamespace *ns, NvmeZone *zone,
     uint8_t zs;
 
     zone->w_ptr += nlb;
-    h_log("zone wptr: 0x%lx\n", zone->w_ptr);
 
     if (zone->w_ptr < zns_zone_wr_boundary(zone)) {
         zs = zns_get_zone_state(zone);
@@ -133,7 +131,6 @@ static uint64_t zns_advance_zone_wp(NvmeNamespace *ns, NvmeZone *zone,
             /* fall through */
         case NVME_ZONE_STATE_CLOSED:
             zns_aor_inc_open(ns);
-            printf("hoon: zns_advance_zone_wp] case] NVME_ZONE_STATE_CLOSED \n");
             zns_assign_zone_state(ns, zone, NVME_ZONE_STATE_IMPLICITLY_OPEN);
         }
     }
@@ -216,15 +213,110 @@ static uint16_t zns_check_zone_write(FemuCtrl *n, NvmeNamespace *ns,
             }
         }
         //by HH: need to fix, currently no wptr check
-        // else if (unlikely(slba != zone->w_ptr))
-        // {
-        //     h_log(" *********ZONE INVALID WRITE Error*********\n");
-        //     h_log("slba: %ld / wptr: %ld\n", slba, zone->w_ptr);
-        //     status = NVME_ZONE_INVALID_WRITE;
-        // }
+        else if (unlikely(slba != zone->w_ptr))
+        {
+            h_log(" *********ZONE INVALID WRITE Error*********\n");
+            h_log("slba: %ld / wptr: %ld\n", slba, zone->w_ptr);
+            status = NVME_ZONE_INVALID_WRITE;
+        }
     }
 
     return status;
+}
+
+static uint16_t zns_check_zone_state_for_read(NvmeZone *zone)
+{
+    uint16_t status;
+
+    switch (zns_get_zone_state(zone)) {
+    case NVME_ZONE_STATE_EMPTY:
+    case NVME_ZONE_STATE_IMPLICITLY_OPEN:
+    case NVME_ZONE_STATE_EXPLICITLY_OPEN:
+    case NVME_ZONE_STATE_FULL:
+    case NVME_ZONE_STATE_CLOSED:
+    case NVME_ZONE_STATE_READ_ONLY:
+        status = NVME_SUCCESS;
+        break;
+    case NVME_ZONE_STATE_OFFLINE:
+        status = NVME_ZONE_OFFLINE;
+        break;
+    default:
+        assert(false);
+    }
+
+    return status;
+}
+
+static uint16_t zns_check_zone_read(NvmeNamespace *ns, uint64_t slba,
+                                    uint32_t nlb)
+{
+    FemuCtrl *n = ns->ctrl;
+    NvmeZone *zone = zns_get_zone_by_slba(ns, slba);
+    uint64_t bndry = zns_zone_rd_boundary(ns, zone);
+    uint64_t end = slba + nlb;
+    uint16_t status;
+
+    status = zns_check_zone_state_for_read(zone);
+    if (status != NVME_SUCCESS) {
+        ;
+    } else if (unlikely(end > bndry)) {
+        if (!n->cross_zone_read) {
+            status = NVME_ZONE_BOUNDARY_ERROR;
+        } else {
+            /*
+             * Read across zone boundary - check that all subsequent
+             * zones that are being read have an appropriate state.
+             */
+            do {
+                zone++;
+                status = zns_check_zone_state_for_read(zone);
+                if (status != NVME_SUCCESS) {
+                    break;
+                }
+            } while (end > zns_zone_rd_boundary(ns, zone));
+        }
+    }
+
+    return status;
+}
+
+static void zns_finalize_zoned_write(NvmeNamespace *ns, NvmeRequest *req,
+                                     bool failed)
+{
+    NvmeRwCmd *rw = (NvmeRwCmd *)&req->cmd;
+    NvmeZone *zone;
+    NvmeZonedResult *res = (NvmeZonedResult *)&req->cqe;
+    uint64_t slba;
+    uint32_t nlb;
+
+    slba = le64_to_cpu(rw->slba);
+    nlb = le16_to_cpu(rw->nlb) + 1;
+    zone = zns_get_zone_by_slba(ns, slba);
+
+    zone->d.wp += nlb;
+
+    if (failed) {
+        res->slba = 0;
+    }
+
+    if (zone->d.wp == zns_zone_wr_boundary(zone)) {
+        switch (zns_get_zone_state(zone)) {
+        case NVME_ZONE_STATE_IMPLICITLY_OPEN:
+        case NVME_ZONE_STATE_EXPLICITLY_OPEN:
+            zns_aor_dec_open(ns);
+            /* fall through */
+        case NVME_ZONE_STATE_CLOSED:
+            zns_aor_dec_active(ns);
+            /* fall through */
+        case NVME_ZONE_STATE_EMPTY:
+            zns_assign_zone_state(ns, zone, NVME_ZONE_STATE_FULL);
+            /* fall through */
+        case NVME_ZONE_STATE_FULL:
+            break;
+        default:
+            assert(false);
+        }
+    }
 }
 //////////////////////////////////////////////////////////////////////////
 
@@ -275,12 +367,16 @@ static void nvme_process_sq_io(void *opaque, int index_poller)
     NvmeRequest *req;
     int processed = 0;
 
+    NvmeRwCmd *rw = (NvmeRwCmd *)&cmd;
+
     nvme_update_sq_tail(sq);
     while (!(nvme_sq_empty(sq))) {
         if (sq->phys_contig) {
             h_log("here0\n");
             addr = sq->dma_addr + sq->head * n->sqe_size;
             nvme_copy_cmd(&cmd, (void *)&(((NvmeCmd *)sq->dma_addr_hva)[sq->head]));
+
+            h_log("slba here1: 0x%lx, nlb: 0x%x\n", rw->slba, rw->nlb);
         } else {
             h_log("here1\n");
             addr = nvme_discontig(sq->prp_list, sq->head, n->page_size,
@@ -593,80 +689,49 @@ uint16_t nvme_rw(FemuCtrl *n, NvmeNamespace *ns, NvmeCmd *cmd, NvmeRequest *req)
         return NVME_INVALID_FIELD;
     }
 
-    if (zns_check_zone_write(n, ns, zone, slba, nlb, false)) {
-        femu_err("hoonhwi:*********ZONE check Error*********\n");
-        return NVME_INVALID_FIELD;
+    if(req->is_write)
+    {
+        if (zns_check_zone_write(n, ns, zone, slba, nlb, false)) {
+            femu_err("hoonhwi:*********ZONE check Error*********\n");
+            return NVME_INVALID_FIELD;
+        }
+
+        if (zns_auto_open_zone(ns, zone)) {
+            femu_err("hoonhwi:*********ZONE Open Error*********\n");
+            return NVME_INVALID_FIELD;
+        }
+
+        NvmeZonedResult *res = (NvmeZonedResult *)&req->cqe;
+        res->slba = zns_advance_zone_wp(ns, zone, nlb);
+
+        if (zns_map_dptr(n, data_size, req)) {
+            femu_err("hoonhwi:*********ZONE Map DPTR Error*********\n");
+            return NVME_INVALID_FIELD;
+        }
     }
-    // if (unlikely((slba + nlb) > (zone->d.zslba + zone->d.zcap) )) {
-    //     h_log("*********ZONE NVME_ZONE_BOUNDARY_ERROR Error*********\n");
-    //     return NVME_INVALID_FIELD;
-    // }
+    else
+    {
+        if (zns_check_zone_read(ns, slba, nlb)) {
+            femu_err("hoonhwi:*********ZONE check Error*********\n");
+            return NVME_INVALID_FIELD;
+        }
 
-    // //zns_check_zone_state_for_write(zone);
-    // switch (zs) {
-    //     case NVME_ZONE_STATE_EMPTY:
-    //     case NVME_ZONE_STATE_IMPLICITLY_OPEN:
-    //     case NVME_ZONE_STATE_EXPLICITLY_OPEN:
-    //     case NVME_ZONE_STATE_CLOSED:
-    //         break;
-    //     case NVME_ZONE_STATE_FULL:
-    //         h_log("*********ZONE STATUS FULL********\n");
-    //         return NVME_INVALID_FIELD;
-    //         break;
-    //     case NVME_ZONE_STATE_OFFLINE:
-    //         h_log("*********ZONE OFFLINE********\n");
-    //         return NVME_INVALID_FIELD;
-    //         break;
-    //     case NVME_ZONE_STATE_READ_ONLY:
-    //         h_log("*********ZONE READ ONLY********\n");
-    //         return NVME_INVALID_FIELD;
-    //         break;
-    //     default:
-    //         assert(false);
-    // }
-
-    // //assert(zns_wp_is_valid(zone));
-
-    // //if (append) {
-    // if(false) { // need to check whether the both read/ write points false
-    //     if (unlikely(slba != zone->d.zslba)) {
-    //         h_log("*********ZONE INVALID FIELD Error*********\n");
-    //         return NVME_INVALID_FIELD;
-    //     }
-    //     if (zns_l2b(ns, nlb) > (n->page_size << n->zasl)) {
-    //         h_log("*********ZONE INVALID FIELD Error*********\n");
-    //         return NVME_INVALID_FIELD;
-    //     }
-    // }
-    // else if (unlikely(slba != zone->w_ptr)) {
-    //     h_log(" *********ZONE INVALID WRITE Error*********\n");
-    //     h_log("slba: %ld / wptr: %ld\n", slba, zone->w_ptr);
-    //     return NVME_INVALID_FIELD;
-    // }
-
-    if (zns_auto_open_zone(ns, zone)) {
-        femu_err("hoonhwi:*********ZONE Open Error*********\n");
-        return NVME_INVALID_FIELD;
-    }
-
-    NvmeZonedResult *res = (NvmeZonedResult *)&req->cqe;
-    res->slba = zns_advance_zone_wp(ns, zone, nlb);
-
-    //uint64_t data_offset = zns_l2b(ns, slba);
-
-    if (zns_map_dptr(n, data_size, req)) {
-        femu_err("hoonhwi:*********ZONE Map DPTR Error*********\n");
-        return NVME_INVALID_FIELD;
+        if (zns_map_dptr(n, data_size, req)) {
+            femu_err("hoonhwi:*********ZONE Map DPTR Error*********\n");
+            return NVME_INVALID_FIELD;
+        }
     }
     ///////////////////////////////////////////////////////////////////////////
 
     h_log("nvme io\n");
     ret = backend_rw(n->mbe, &req->qsg, &data_offset, req->is_write);
-    if (!ret) {
-        return NVME_SUCCESS;
+    if (ret) {
+        return NVME_DNR;
     }
 
-    return NVME_DNR;
+    if(req->is_write) zns_finalize_zoned_write(ns, req, false);
+
+    return NVME_SUCCESS;
 }
 
 static uint16_t nvme_dsm(FemuCtrl *n, NvmeNamespace *ns, NvmeCmd *cmd,

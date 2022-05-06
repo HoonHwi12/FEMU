@@ -950,7 +950,7 @@ static uint16_t nvme_format(FemuCtrl *n, NvmeCmd *cmd)
 
 
 
-// by HH: change flash type / print zone / config control /////////////////////////////////////////////
+// by HH: change flash type / print zones / config control /////////////////////////////////////////////
 #include "zns/zns.h"
 static uint16_t nvme_change_flash_type(FemuCtrl *n, NvmeCmd *cmd)
 {
@@ -1019,11 +1019,11 @@ static uint16_t nvme_print_flash_type(FemuCtrl *n, NvmeCmd *cmd)
     "","","","","","","");
     for(int i=0; i<n->num_zones; i++, zone++)
     {
-        printf("   [zone#%2d] 0x%06lx | 0x%05lx | 0x%06lx | %9s | %6s | %s | %.3ld %.3ld %.3ld\n",
-        i,zone->d.zslba, zone->d.zcap, zone->d.wp,
-        zone->d.zs==0?"Rsrved":zone->d.zs==1?"Empty":zone->d.zs==2?"ImplicOpen"\
-        :zone->d.zs==3?"ExpliOpen":zone->d.zs==4?"Closed":zone->d.zs==0xD?"RdOnly"\
-        :zone->d.zs==0xE?"Full":zone->d.zs==0xF?"Offline":"Unknown"
+        printf("   [zone#%2d] 0x%06lx | 0x%05lx | 0x%06lx | %12s | %6s | %s | %.3ld %.3ld %.3ld\n",
+        i, zone->d.zslba, zone->d.zcap, zone->d.wp,
+        zone->d.zs>>4==0?"Rsrved":zone->d.zs>>4==1?"Empty":zone->d.zs>>4==2?"ImplicOpen" \
+        :zone->d.zs>>4==3?"ExpliOpen":zone->d.zs>>4==4?"Closed":zone->d.zs>>4==0xD?"RdOnly" \
+        :zone->d.zs>>4==0xE?"Full":zone->d.zs>>4==0xF?"Offline":"Unknown"
         ,zone->d.zt==0?"Rsrved":"SeqW"
         ,zone->d.zone_flash_type==1?"SLC":zone->d.zone_flash_type==2?"MLC"\
         :zone->d.zone_flash_type==3?"TLC":zone->d.zone_flash_type==4?"QLC":"Unknown"

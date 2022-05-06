@@ -250,7 +250,7 @@ static void zns_assign_zone_state(NvmeNamespace *ns, NvmeZone *zone,
             ;
         }
     }
-    printf("hoon zns_assign_zone_state\n");
+
     zns_set_zone_state(zone, state);
 
     switch (state) {
@@ -1244,6 +1244,9 @@ err:
 static uint16_t zns_io_cmd(FemuCtrl *n, NvmeNamespace *ns, NvmeCmd *cmd,
                            NvmeRequest *req)
 {
+    NvmeRwCmd *rw = (NvmeRwCmd *)&req->cmd;
+    h_log("zns_io_cmd slba: 0x%lx, nlb: 0x%x\n", rw->slba, rw->nlb);
+
     printf("zns_io_cmd\n");
     switch (cmd->opcode) {
     case NVME_CMD_READ:
