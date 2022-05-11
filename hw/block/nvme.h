@@ -6,6 +6,10 @@
 
 #define NVME_MAX_NAMESPACES 256
 
+// by HH
+#define h_log(fmt, ...) \
+    do { fprintf(stderr, "[hoonhwi] Log: " fmt, ## __VA_ARGS__); } while (0)
+    
 typedef struct NvmeParams {
     char     *serial;
     uint32_t num_queues; /* deprecated since 5.1 */

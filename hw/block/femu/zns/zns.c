@@ -303,12 +303,15 @@ static uint16_t zns_check_zone_state_for_write(NvmeZone *zone)
         status = NVME_SUCCESS;
         break;
     case NVME_ZONE_STATE_FULL:
+        h_log("*********ZONE STATUS FULL********\n");
         status = NVME_ZONE_FULL;
         break;
     case NVME_ZONE_STATE_OFFLINE:
+        h_log("*********ZONE OFFLINE********\n");    
         status = NVME_ZONE_OFFLINE;
         break;
     case NVME_ZONE_STATE_READ_ONLY:
+        h_log("*********ZONE READ ONLY********\n");
         status = NVME_ZONE_READ_ONLY;
         break;
     default:
@@ -345,6 +348,7 @@ static uint16_t zns_check_zone_write(FemuCtrl *n, NvmeNamespace *ns,
             }
         } else if (unlikely(slba != zone->w_ptr)) {
             h_log(" *********ZONE INVALID WRITE Error*********\n");
+            h_log("slba: %ld / wptr: %ld\n", slba, zone->w_ptr);
             status = NVME_ZONE_INVALID_WRITE;
         }
     }
@@ -1206,6 +1210,7 @@ static uint16_t zns_write(FemuCtrl *n, NvmeNamespace *ns, NvmeCmd *cmd,
 
     status = zns_check_zone_write(n, ns, zone, slba, nlb, false);
     if (status) {
+        femu_err("hoonhwi:*********ZONE check Error*********\n");
         goto err;
     }
 
@@ -1225,6 +1230,7 @@ static uint16_t zns_write(FemuCtrl *n, NvmeNamespace *ns, NvmeCmd *cmd,
         goto err;
     }
 
+    h_log("zns io\n");
     backend_rw(n->mbe, &req->qsg, &data_offset, req->is_write);
     zns_finalize_zoned_write(ns, req, false);
 
@@ -1238,6 +1244,9 @@ err:
 static uint16_t zns_io_cmd(FemuCtrl *n, NvmeNamespace *ns, NvmeCmd *cmd,
                            NvmeRequest *req)
 {
+    NvmeRwCmd *rw = (NvmeRwCmd *)&req->cmd;
+    h_log("zns_io_cmd slba: 0x%lx, nlb: 0x%x\n", rw->slba, rw->nlb);
+    
     switch (cmd->opcode) {
     case NVME_CMD_READ:
         usleep(n->zone_array->d.rd_lat_ns*1e-3); // by HH

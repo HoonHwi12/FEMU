@@ -950,12 +950,12 @@ static uint16_t nvme_format(FemuCtrl *n, NvmeCmd *cmd)
 
 
 
-// by HH: change flash type / print zone /////////////////////////////////////////////
+// by HH: change flash type / print zones / config control /////////////////////////////////////////////
 #include "zns/zns.h"
 static uint16_t nvme_change_flash_type(FemuCtrl *n, NvmeCmd *cmd)
 {
 
-    if(cmd->cdw10 > n->num_zones || cmd->cdw10==0)
+    if(cmd->cdw10 > n->num_zones)
     {
         femu_err("Invalid zone (cdw10: 0x%x)\n", cmd->cdw10);
         return NVME_ZONE_BOUNDARY_ERROR;
@@ -1019,11 +1019,11 @@ static uint16_t nvme_print_flash_type(FemuCtrl *n, NvmeCmd *cmd)
     "","","","","","","");
     for(int i=0; i<n->num_zones; i++, zone++)
     {
-        printf("   [zone#%2d] 0x%06lx | 0x%05lx | 0x%06lx | %9s | %6s | %s | %.3ld %.3ld %.3ld\n",
-        i,zone->d.zslba, zone->d.zcap, zone->d.wp,
-        zone->d.zs==0?"Rsrved":zone->d.zs==1?"Empty":zone->d.zs==2?"ImplicOpen"\
-        :zone->d.zs==3?"ExpliOpen":zone->d.zs==4?"Closed":zone->d.zs==0xD?"RdOnly"\
-        :zone->d.zs==0xE?"Full":zone->d.zs==0xF?"Offline":"Unknown"
+        printf("   [zone#%2d] 0x%06lx | 0x%05lx | 0x%06lx | %12s | %6s | %s | %.3ld %.3ld %.3ld\n",
+        i, zone->d.zslba, zone->d.zcap, zone->d.wp,
+        zone->d.zs>>4==0?"Rsrved":zone->d.zs>>4==1?"Empty":zone->d.zs>>4==2?"ImplicOpen" \
+        :zone->d.zs>>4==3?"ExpliOpen":zone->d.zs>>4==4?"Closed":zone->d.zs>>4==0xD?"RdOnly" \
+        :zone->d.zs>>4==0xE?"Full":zone->d.zs>>4==0xF?"Offline":"Unknown"
         ,zone->d.zt==0?"Rsrved":"SeqW"
         ,zone->d.zone_flash_type==1?"SLC":zone->d.zone_flash_type==2?"MLC"\
         :zone->d.zone_flash_type==3?"TLC":zone->d.zone_flash_type==4?"QLC":"Unknown"
@@ -1037,84 +1037,98 @@ static uint16_t nvme_zconfig_control(FemuCtrl *n, NvmeCmd *cmd)
 {
     if(cmd->cdw10 != 0x899) n->max_active_zones = cmd->cdw10;
     if(cmd->cdw11 != 0x899) n->max_open_zones = cmd->cdw11;
+    if(cmd->cdw12 != 0x899 && cmd->cdw12 <= 4)
+    {
+        h_log("dummy cmd\n");
+        // n->femu_mode = cmd->cdw12;
+        // n->mbe->femu_mode = n->femu_mode;
+
+        // if(n->femu_mode == FEMU_ZNSSD_MODE) nvme_register_znssd(n);
+        // else if(n->femu_mode == FEMU_BBSSD_MODE) nvme_register_bbssd(n);
+        // else if(n->femu_mode == FEMU_ZBBSSD_MODE) nvme_register_bbssd(n);
+    }
 
     NvmeNamespace *ns = &n->namespaces[0];
 
     // by HH: re-initialize zone
-    NvmeIdNsZoned *id_ns_z;
+    if(n->femu_mode == FEMU_ZNSSD_MODE)
+    {
+        NvmeIdNsZoned *id_ns_z;
 
-    uint64_t start = 0, zone_size = n->zone_size;
-    uint64_t capacity = n->num_zones * zone_size;
-    NvmeZone *zone;
-    int i;
+        uint64_t start = 0, zone_size = n->zone_size;
+        uint64_t capacity = n->num_zones * zone_size;
+        NvmeZone *zone;
+        int i;
 
-    n->zone_array = g_new0(NvmeZone, n->num_zones);
-    if (n->zd_extension_size) {
-        n->zd_extensions = g_malloc0(n->zd_extension_size * n->num_zones);
-    }
-
-    QTAILQ_INIT(&n->exp_open_zones);
-    QTAILQ_INIT(&n->imp_open_zones);
-    QTAILQ_INIT(&n->closed_zones);
-    QTAILQ_INIT(&n->full_zones);
-
-    zone = n->zone_array;
-    for (i = 0; i < n->num_zones; i++, zone++) {
-        if (start + zone_size > capacity) {
-            zone_size = capacity - start;
+        n->zone_array = g_new0(NvmeZone, n->num_zones);
+        if (n->zd_extension_size) {
+            n->zd_extensions = g_malloc0(n->zd_extension_size * n->num_zones);
         }
-        zone->d.zt = NVME_ZONE_TYPE_SEQ_WRITE;
-        zns_set_zone_state(zone, NVME_ZONE_STATE_EMPTY);
-        zone->d.za = 0;
-        zone->d.zcap = n->zone_capacity;
-        zone->d.zslba = start;
-        zone->d.wp = start;
-        zone->d.zone_flash_type = n->flash_type;
-        zone->w_ptr = start;
-        start += zone_size;
+
+        QTAILQ_INIT(&n->exp_open_zones);
+        QTAILQ_INIT(&n->imp_open_zones);
+        QTAILQ_INIT(&n->closed_zones);
+        QTAILQ_INIT(&n->full_zones);
+
+        zone = n->zone_array;
+        for (i = 0; i < n->num_zones; i++, zone++) {
+            if (start + zone_size > capacity) {
+                zone_size = capacity - start;
+            }
+            zone->d.zt = NVME_ZONE_TYPE_SEQ_WRITE;
+            zns_set_zone_state(zone, NVME_ZONE_STATE_EMPTY);
+            zone->d.za = 0;
+            zone->d.zcap = n->zone_capacity;
+            zone->d.zslba = start;
+            zone->d.wp = start;
+            zone->d.zone_flash_type = n->flash_type;
+            zone->w_ptr = start;
+            start += zone_size;
+        }
+
+        n->zone_size_log2 = 0;
+        if (is_power_of_2(n->zone_size)) {
+            n->zone_size_log2 = 63 - clz64(n->zone_size);
+        }
+
+        id_ns_z = g_malloc0(sizeof(NvmeIdNsZoned));
+
+        /* MAR/MOR are zeroes-based, 0xffffffff means no limit */
+        id_ns_z->mar = cpu_to_le32(n->max_active_zones - 1);
+        id_ns_z->mor = cpu_to_le32(n->max_open_zones - 1);
+        id_ns_z->zoc = 0;
+        id_ns_z->ozcs = n->cross_zone_read ? 0x01 : 0x00;
+
+        id_ns_z->lbafe[0].zsze = cpu_to_le64(n->zone_size);
+        id_ns_z->lbafe[0].zdes = n->zd_extension_size >> 6; /* Units of 64B */
+
+        n->csi = NVME_CSI_ZONED;
+        ns->id_ns.nsze = cpu_to_le64(n->num_zones * n->zone_size);
+        ns->id_ns.ncap = ns->id_ns.nsze;
+        ns->id_ns.nuse = ns->id_ns.ncap;
+
+        /* NvmeIdNs */
+        /*
+        * The device uses the BDRV_BLOCK_ZERO flag to determine the "deallocated"
+        * status of logical blocks. Since the spec defines that logical blocks
+        * SHALL be deallocated when then zone is in the Empty or Offline states,
+        * we can only support DULBE if the zone size is a multiple of the
+        * calculated NPDG.
+        */
+        if (n->zone_size % (ns->id_ns.npdg + 1)) {
+            femu_err("the zone size (%"PRIu64" blocks) is not a multiple of the"
+                    "calculated deallocation granularity (%"PRIu16" blocks); DULBE"
+                    "support disabled", n->zone_size, ns->id_ns.npdg + 1);
+            ns->id_ns.nsfeat &= ~0x4;
+            return NVME_ZONE_BOUNDARY_ERROR;
+        }
+
+        n->id_ns_zoned = id_ns_z;
+
+        h_log("max active: %d\n", n->max_active_zones );
+        h_log("max open: %d\n", n->max_open_zones );
+        h_log("femu mode: %d\n", n->femu_mode );
     }
-
-    n->zone_size_log2 = 0;
-    if (is_power_of_2(n->zone_size)) {
-        n->zone_size_log2 = 63 - clz64(n->zone_size);
-    }
-
-    id_ns_z = g_malloc0(sizeof(NvmeIdNsZoned));
-
-    /* MAR/MOR are zeroes-based, 0xffffffff means no limit */
-    id_ns_z->mar = cpu_to_le32(n->max_active_zones - 1);
-    id_ns_z->mor = cpu_to_le32(n->max_open_zones - 1);
-    id_ns_z->zoc = 0;
-    id_ns_z->ozcs = n->cross_zone_read ? 0x01 : 0x00;
-
-    id_ns_z->lbafe[0].zsze = cpu_to_le64(n->zone_size);
-    id_ns_z->lbafe[0].zdes = n->zd_extension_size >> 6; /* Units of 64B */
-
-    n->csi = NVME_CSI_ZONED;
-    ns->id_ns.nsze = cpu_to_le64(n->num_zones * n->zone_size);
-    ns->id_ns.ncap = ns->id_ns.nsze;
-    ns->id_ns.nuse = ns->id_ns.ncap;
-
-    /* NvmeIdNs */
-    /*
-     * The device uses the BDRV_BLOCK_ZERO flag to determine the "deallocated"
-     * status of logical blocks. Since the spec defines that logical blocks
-     * SHALL be deallocated when then zone is in the Empty or Offline states,
-     * we can only support DULBE if the zone size is a multiple of the
-     * calculated NPDG.
-     */
-    if (n->zone_size % (ns->id_ns.npdg + 1)) {
-        femu_err("the zone size (%"PRIu64" blocks) is not a multiple of the"
-                 "calculated deallocation granularity (%"PRIu16" blocks); DULBE"
-                 "support disabled", n->zone_size, ns->id_ns.npdg + 1);
-        ns->id_ns.nsfeat &= ~0x4;
-        return NVME_ZONE_BOUNDARY_ERROR;
-    }
-
-    n->id_ns_zoned = id_ns_z;
-
-    h_log("max active: %d\n", n->max_active_zones );
-    h_log("max open: %d\n", n->max_open_zones );
 
     return NVME_SUCCESS;
 }
