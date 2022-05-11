@@ -374,19 +374,23 @@ void ssd_init(FemuCtrl *n)
     for (int i = 0; i < spp->nchs; i++) {
         ssd_init_ch(&ssd->ch[i], spp);
     }
-
+h_log("init maptbl\n)");
     /* initialize maptbl */
     ssd_init_maptbl(ssd);
 
+h_log("init rmap\n)");
     /* initialize rmap */
     ssd_init_rmap(ssd);
 
+h_log("init lines\n)");
     /* initialize all the lines */
     ssd_init_lines(ssd);
 
+h_log("init w pointer\n)");
     /* initialize write pointer, this is how we allocate new pages for writes */
     ssd_init_write_pointer(ssd);
 
+h_log("init thread create\n)");
     qemu_thread_create(&ssd->ftl_thread, "FEMU-FTL-Thread", ftl_thread, n,
                        QEMU_THREAD_JOINABLE);
 }
@@ -774,12 +778,13 @@ static uint64_t ssd_read(struct ssd *ssd, NvmeRequest *req)
     int nsecs = req->nlb;
     struct ppa ppa;
     uint64_t start_lpn = lba / spp->secs_per_pg;
-    uint64_t end_lpn = (lba + nsecs - 1) / spp->secs_per_pg;
+    uint64_t end_lpn = (lba + nsecs) / spp->secs_per_pg;
     uint64_t lpn;
     uint64_t sublat, maxlat = 0;
 
     if (end_lpn >= spp->tt_pgs) {
-        ftl_err("start_lpn=%"PRIu64",tt_pgs=%d\n", start_lpn, ssd->sp.tt_pgs);
+        //ftl_err("start_lpn=%"PRIu64",tt_pgs=%d\n", start_lpn, ssd->sp.tt_pgs);
+        ftl_err("end_lpn=%"PRIu64",tt_pgs=%d\n", end_lpn, spp->tt_pgs);
     }
 
     /* normal IO read path */
@@ -809,14 +814,15 @@ static uint64_t ssd_write(struct ssd *ssd, NvmeRequest *req)
     struct ssdparams *spp = &ssd->sp;
     int len = req->nlb;
     uint64_t start_lpn = lba / spp->secs_per_pg;
-    uint64_t end_lpn = (lba + len - 1) / spp->secs_per_pg;
+    uint64_t end_lpn = (lba + len) / spp->secs_per_pg;
     struct ppa ppa;
     uint64_t lpn;
     uint64_t curlat = 0, maxlat = 0;
     int r;
 
     if (end_lpn >= spp->tt_pgs) {
-        ftl_err("start_lpn=%"PRIu64",tt_pgs=%d\n", start_lpn, ssd->sp.tt_pgs);
+        //ftl_err("start_lpn=%"PRIu64",tt_pgs=%d\n", start_lpn, ssd->sp.tt_pgs);
+        ftl_err("end_lpn=%"PRIu64",tt_pgs=%d\n", end_lpn, spp->tt_pgs);
     }
 
     while (should_gc_high(ssd)) {
