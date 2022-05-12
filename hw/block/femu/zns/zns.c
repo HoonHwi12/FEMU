@@ -143,9 +143,10 @@ static void zns_init_zone_identify(FemuCtrl *n, NvmeNamespace *ns, int lba_index
     id_ns_z->lbafe[lba_index].zdes = n->zd_extension_size >> 6; /* Units of 64B */
 
     n->csi = NVME_CSI_ZONED;
-    ns->id_ns.nsze = cpu_to_le64(n->num_zones * n->zone_size);
-    ns->id_ns.ncap = ns->id_ns.nsze;
-    ns->id_ns.nuse = ns->id_ns.ncap;
+    // ns->id_ns.nsze = cpu_to_le64(n->num_zones * n->zone_size);
+    // ns->id_ns.ncap = ns->id_ns.nsze;
+
+    //ns->id_ns.nuse = ns->id_ns.ncap;
 
     /* NvmeIdNs */
     /*
@@ -155,12 +156,12 @@ static void zns_init_zone_identify(FemuCtrl *n, NvmeNamespace *ns, int lba_index
      * we can only support DULBE if the zone size is a multiple of the
      * calculated NPDG.
      */
-    if (n->zone_size % (ns->id_ns.npdg + 1)) {
-        femu_err("the zone size (%"PRIu64" blocks) is not a multiple of the"
-                 "calculated deallocation granularity (%"PRIu16" blocks); DULBE"
-                 "support disabled", n->zone_size, ns->id_ns.npdg + 1);
-        ns->id_ns.nsfeat &= ~0x4;
-    }
+    // if (n->zone_size % (ns->id_ns.npdg + 1)) {
+    //     femu_err("the zone size (%"PRIu64" blocks) is not a multiple of the"
+    //              "calculated deallocation granularity (%"PRIu16" blocks); DULBE"
+    //              "support disabled", n->zone_size, ns->id_ns.npdg + 1);
+    //     ns->id_ns.nsfeat &= ~0x4;
+    // }
 
     n->id_ns_zoned = id_ns_z;
 }
