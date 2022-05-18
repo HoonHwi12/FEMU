@@ -348,7 +348,6 @@ static uint16_t nvme_identify_ns_csi(FemuCtrl *n, NvmeCmd *cmd)
         return dma_read_prp(n, (uint8_t *)n->id_ns_zoned, pgsz, prp1, prp2);
     }
 
-    printf("Here2\n");
     return NVME_INVALID_FIELD | NVME_DNR;
 }
 

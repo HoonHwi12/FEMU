@@ -370,6 +370,7 @@ static void nvme_process_sq_io(void *opaque, int index_poller)
             addr = sq->dma_addr + sq->head * n->sqe_size;
             nvme_copy_cmd(&cmd, (void *)&(((NvmeCmd *)sq->dma_addr_hva)[sq->head]));
 
+            #ifdef HLOG
             NvmeRwCmd *rw = (NvmeRwCmd *)&cmd;
             h_log("nvme_process_sq_io opcode: %d, slba: 0x%lx, nlb: 0x%x\n", rw->opcode, rw->slba, rw->nlb);
             h_log("opcode: %d\n", rw->opcode);
@@ -387,6 +388,7 @@ static void nvme_process_sq_io(void *opaque, int index_poller)
             h_log("reftag: %d\n", rw->reftag);
             h_log("apptag: %d\n", rw->apptag);
             h_log("appmask: %d\n", rw->appmask);
+            #endif
         } else {
             addr = nvme_discontig(sq->prp_list, sq->head, n->page_size,
                                   n->sqe_size);
@@ -884,10 +886,6 @@ static uint16_t nvme_write_uncor(FemuCtrl *n, NvmeNamespace *ns, NvmeCmd *cmd,
 
 static uint16_t nvme_io_cmd(FemuCtrl *n, NvmeCmd *cmd, NvmeRequest *req)
 {
-    //by HH
-    NvmeRwCmd *rw = (NvmeRwCmd *)&req->cmd;
-    h_log("nvme_io_cmd slba: 0x%lx, nlb: 0x%x\n", rw->slba, rw->nlb);
-
     NvmeNamespace *ns;
     uint32_t nsid = le32_to_cpu(cmd->nsid);
 

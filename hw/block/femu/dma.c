@@ -142,17 +142,17 @@ uint16_t dma_read_prp(FemuCtrl *n, uint8_t *ptr, uint32_t len, uint64_t prp1,
     uint16_t status = NVME_SUCCESS;
 
     if (nvme_map_prp(&qsg, &iov, prp1, prp2, len, n)) {
-        printf("Here3\n");
+        printf("nvme map prp error\n");
         return NVME_INVALID_FIELD | NVME_DNR;
     }
     if (qsg.nsg > 0) {
-        printf("buf read *******************\n");
+        //h_log("buf read *******************\n");
         if (dma_buf_read(ptr, len, &qsg)) {
             status = NVME_INVALID_FIELD | NVME_DNR;
         }
         qemu_sglist_destroy(&qsg);
     } else {
-        printf("iovec to buf ************************\n");
+        //h_log("iovec to buf ************************\n");
         if (qemu_iovec_to_buf(&iov, 0, ptr, len) != len) {
             status = NVME_INVALID_FIELD | NVME_DNR;
         }

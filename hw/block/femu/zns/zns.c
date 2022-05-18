@@ -1245,9 +1245,6 @@ err:
 static uint16_t zns_io_cmd(FemuCtrl *n, NvmeNamespace *ns, NvmeCmd *cmd,
                            NvmeRequest *req)
 {
-    NvmeRwCmd *rw = (NvmeRwCmd *)&req->cmd;
-    h_log("zns_io_cmd slba: 0x%lx, nlb: 0x%x\n", rw->slba, rw->nlb);
-    
     switch (cmd->opcode) {
     case NVME_CMD_READ:
         usleep(n->zone_array->d.rd_lat_ns*1e-3); // by HH
