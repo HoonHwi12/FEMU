@@ -331,6 +331,8 @@ static uint16_t nvme_identify_ns_csi(FemuCtrl *n, NvmeCmd *cmd)
     uint64_t prp2 = le64_to_cpu(cmd->dptr.prp2);
     int pgsz = n->page_size;
 
+    printf("prp1: %ld, prp2: %ld\n", prp1, prp2);
+
     if (!nvme_nsid_valid(n, nsid) || nsid == NVME_NSID_BROADCAST) {
         return NVME_INVALID_NSID | NVME_DNR;
     }
@@ -346,6 +348,7 @@ static uint16_t nvme_identify_ns_csi(FemuCtrl *n, NvmeCmd *cmd)
         return dma_read_prp(n, (uint8_t *)n->id_ns_zoned, pgsz, prp1, prp2);
     }
 
+    printf("Here2\n");
     return NVME_INVALID_FIELD | NVME_DNR;
 }
 
@@ -1051,8 +1054,8 @@ static uint16_t nvme_zconfig_control(FemuCtrl *n, NvmeCmd *cmd)
     NvmeNamespace *ns = &n->namespaces[0];
 
     // by HH: re-initialize zone
-    if(n->femu_mode == FEMU_ZNSSD_MODE)
-    {
+    // if(n->femu_mode == FEMU_ZNSSD_MODE)
+    // {
         NvmeIdNsZoned *id_ns_z;
 
         uint64_t start = 0, zone_size = n->zone_size;
@@ -1128,7 +1131,7 @@ static uint16_t nvme_zconfig_control(FemuCtrl *n, NvmeCmd *cmd)
         h_log("max active: %d\n", n->max_active_zones );
         h_log("max open: %d\n", n->max_open_zones );
         h_log("femu mode: %d\n", n->femu_mode );
-    }
+    // }
 
     return NVME_SUCCESS;
 }

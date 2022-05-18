@@ -66,20 +66,20 @@ qtests_i386 = \
    'test-x86-cpuid-compat',
    'numa-test']
 
-dbus_daemon = find_program('dbus-daemon', required: false)
-if dbus_daemon.found() and config_host.has_key('GDBUS_CODEGEN')
+#dbus_daemon = find_program('dbus-daemon', required: false)
+#if dbus_daemon.found() and config_host.has_key('GDBUS_CODEGEN')
   # Temporarily disabled due to Patchew failures:
   #qtests_i386 += ['dbus-vmstate-test']
-  dbus_vmstate1 = custom_target('dbus-vmstate description',
-                                output: ['dbus-vmstate1.h', 'dbus-vmstate1.c'],
-                                input: files('dbus-vmstate1.xml'),
-                                command: [config_host['GDBUS_CODEGEN'],
-                                          '@INPUT@',
-                                          '--interface-prefix', 'org.qemu',
-                                          '--generate-c-code', '@BASENAME@']).to_list()
-else
+#  dbus_vmstate1 = custom_target('dbus-vmstate description',
+#                                output: ['dbus-vmstate1.h', 'dbus-vmstate1.c'],
+#                                input: files('dbus-vmstate1.xml'),
+#                                command: [config_host['GDBUS_CODEGEN'],
+#                                          '@INPUT@',
+#                                          '--interface-prefix', 'org.qemu',
+#                                          '--generate-c-code', '@BASENAME@']).to_list()
+#else
   dbus_vmstate1 = []
-endif
+#endif
 
 qtests_x86_64 = qtests_i386
 
