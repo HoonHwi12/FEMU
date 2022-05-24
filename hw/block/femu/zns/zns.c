@@ -251,7 +251,7 @@ static void zns_assign_zone_state(NvmeNamespace *ns, NvmeZone *zone,
             ;
         }
     }
-printf("hoon zns_assign_zone_state\n");
+
     zns_set_zone_state(zone, state);
 
     switch (state) {
@@ -460,6 +460,8 @@ static void zns_finalize_zoned_write(NvmeNamespace *ns, NvmeRequest *req,
     zone = zns_get_zone_by_slba(ns, slba);
 
     zone->d.wp += nlb;
+
+    printf("slba: %ld, zone->d.wp: %ld, nlb: %d\n", req->slba, zone->d.wp, nlb);
 
     if (failed) {
         res->slba = 0;

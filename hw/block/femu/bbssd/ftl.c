@@ -1,4 +1,5 @@
 #include "ftl.h"
+#include "../zns/zns.h"
 
 //#define FEMU_DEBUG_FTL
 
@@ -234,7 +235,7 @@ static void check_params(struct ssdparams *spp)
     //ftl_assert(is_power_of_2(spp->nchs));
 }
 
-static void ssd_init_params(struct ssdparams *spp)
+static void ssd_init_params(FemuCtrl *n, struct ssdparams *spp)
 {
     spp->secsz = 512;
     spp->secs_per_pg = 8;
@@ -244,10 +245,31 @@ static void ssd_init_params(struct ssdparams *spp)
     spp->luns_per_ch = 8;
     spp->nchs = 8;
 
-    spp->pg_rd_lat = NAND_READ_LATENCY;
-    spp->pg_wr_lat = NAND_PROG_LATENCY;
-    spp->blk_er_lat = NAND_ERASE_LATENCY;
+    spp->pg_rd_lat = NAND_TLC_READ_LATENCY;
+    spp->pg_wr_lat = NAND_TLC_PROG_LATENCY;
+    spp->blk_er_lat = NAND_TLC_ERASE_LATENCY;
     spp->ch_xfer_lat = 0;
+    //* by HH *********************************************  
+    // spp->pg_slc_rd_lat = NAND_TLC_READ_LATENCY * 2.5;
+    // spp->pg_slc_wr_lat = NAND_TLC_PROG_LATENCY * 2.5;
+    // spp->blk_slc_er_lat = NAND_TLC_ERASE_LATENCY * 2.5;
+    // spp->ch_slc_xfer_lat = 0;
+
+    // spp->pg_mlc_rd_lat = NAND_TLC_READ_LATENCY * 1.5;
+    // spp->pg_mlc_wr_lat = NAND_TLC_PROG_LATENCY * 1.5;
+    // spp->blk_mlc_er_lat = NAND_TLC_ERASE_LATENCY * 1.5;
+    // spp->ch_mlc_xfer_lat = 0;
+
+    // spp->pg_tlc_rd_lat = NAND_TLC_READ_LATENCY;
+    // spp->pg_tlc_wr_lat = NAND_TLC_PROG_LATENCY;
+    // spp->blk_tlc_er_lat = NAND_TLC_ERASE_LATENCY;
+    // spp->ch_tlc_xfer_lat = 0;
+
+    // spp->pg_qlc_rd_lat = NAND_TLC_READ_LATENCY * 0.7;
+    // spp->pg_qlc_wr_lat = NAND_TLC_PROG_LATENCY * 0.7;
+    // spp->blk_qlc_er_lat = NAND_TLC_ERASE_LATENCY * 0.7;
+    // spp->ch_qlc_xfer_lat = 0;
+    // *****************************************************
 
     /* calculated values */
     spp->secs_per_blk = spp->secs_per_pg * spp->pgs_per_blk;
@@ -367,7 +389,7 @@ void ssd_init(FemuCtrl *n)
 
     ftl_assert(ssd);
 
-    ssd_init_params(spp);
+    ssd_init_params(n, spp);
 
     /* initialize ssd internal layout architecture */
     ssd->ch = g_malloc0(sizeof(struct ssd_channel) * spp->nchs);
@@ -458,7 +480,7 @@ static inline struct nand_page *get_pg(struct ssd *ssd, struct ppa *ppa)
 }
 
 static uint64_t ssd_advance_status(struct ssd *ssd, struct ppa *ppa, struct
-        nand_cmd *ncmd)
+        nand_cmd *ncmd, uint16_t flash_type)
 {
     int c = ncmd->cmd;
     uint64_t cmd_stime = (ncmd->stime == 0) ? \
@@ -473,7 +495,14 @@ static uint64_t ssd_advance_status(struct ssd *ssd, struct ppa *ppa, struct
         /* read: perform NAND cmd first */
         nand_stime = (lun->next_lun_avail_time < cmd_stime) ? cmd_stime : \
                      lun->next_lun_avail_time;
+
         lun->next_lun_avail_time = nand_stime + spp->pg_rd_lat;
+        //* by HH
+        // if(flash_type == SLC) lun->next_lun_avail_time = nand_stime + spp->pg_slc_rd_lat;
+        // else if(flash_type == MLC) lun->next_lun_avail_time = nand_stime + spp->pg_mlc_rd_lat;
+        // else if(flash_type == TLC) lun->next_lun_avail_time = nand_stime + spp->pg_tlc_rd_lat;
+        // else if(flash_type) lun->next_lun_avail_time = nand_stime + spp->pg_qlc_rd_lat;
+        //*******************
         lat = lun->next_lun_avail_time - cmd_stime;
 #if 0
         lun->next_lun_avail_time = nand_stime + spp->pg_rd_lat;
@@ -493,8 +522,20 @@ static uint64_t ssd_advance_status(struct ssd *ssd, struct ppa *ppa, struct
                      lun->next_lun_avail_time;
         if (ncmd->type == USER_IO) {
             lun->next_lun_avail_time = nand_stime + spp->pg_wr_lat;
+            //* by HH *************
+            // if(flash_type == SLC) lun->next_lun_avail_time = nand_stime + spp->pg_slc_wr_lat;
+            // else if(flash_type == MLC) lun->next_lun_avail_time = nand_stime + spp->pg_mlc_wr_lat;
+            // else if(flash_type == TLC) lun->next_lun_avail_time = nand_stime + spp->pg_tlc_wr_lat;
+            // else if(flash_type == QLC) lun->next_lun_avail_time = nand_stime + spp->pg_qlc_wr_lat;
+            //***********************
         } else {
             lun->next_lun_avail_time = nand_stime + spp->pg_wr_lat;
+            //* by HH *************
+            // if(flash_type == SLC) lun->next_lun_avail_time = nand_stime + spp->pg_slc_wr_lat;
+            // else if(flash_type == MLC) lun->next_lun_avail_time = nand_stime + spp->pg_mlc_wr_lat;
+            // else if(flash_type == TLC) lun->next_lun_avail_time = nand_stime + spp->pg_tlc_wr_lat;
+            // else if(flash_type == QLC) lun->next_lun_avail_time = nand_stime + spp->pg_qlc_wr_lat;
+            //***********************
         }
         lat = lun->next_lun_avail_time - cmd_stime;
 
@@ -516,7 +557,14 @@ static uint64_t ssd_advance_status(struct ssd *ssd, struct ppa *ppa, struct
         /* erase: only need to advance NAND status */
         nand_stime = (lun->next_lun_avail_time < cmd_stime) ? cmd_stime : \
                      lun->next_lun_avail_time;
+
         lun->next_lun_avail_time = nand_stime + spp->blk_er_lat;
+        //* by HH *************
+        // if(flash_type == SLC) lun->next_lun_avail_time = nand_stime + spp->blk_slc_er_lat;
+        // else if(flash_type == MLC) lun->next_lun_avail_time = nand_stime + spp->blk_mlc_er_lat;
+        // else if(flash_type == TLC) lun->next_lun_avail_time = nand_stime + spp->blk_tlc_er_lat;
+        // else if(flash_type == QLC) lun->next_lun_avail_time = nand_stime + spp->blk_qlc_er_lat;
+        //***********************
 
         lat = lun->next_lun_avail_time - cmd_stime;
         break;
@@ -626,7 +674,7 @@ static void gc_read_page(struct ssd *ssd, struct ppa *ppa)
         gcr.type = GC_IO;
         gcr.cmd = NAND_READ;
         gcr.stime = 0;
-        ssd_advance_status(ssd, ppa, &gcr);
+        ssd_advance_status(ssd, ppa, &gcr, TLC);
     }
 }
 
@@ -654,7 +702,7 @@ static uint64_t gc_write_page(struct ssd *ssd, struct ppa *old_ppa)
         gcw.type = GC_IO;
         gcw.cmd = NAND_WRITE;
         gcw.stime = 0;
-        ssd_advance_status(ssd, &new_ppa, &gcw);
+        ssd_advance_status(ssd, &new_ppa, &gcw, TLC);
     }
 
     /* advance per-ch gc_endtime as well */
@@ -758,7 +806,7 @@ static int do_gc(struct ssd *ssd, bool force)
                 gce.type = GC_IO;
                 gce.cmd = NAND_ERASE;
                 gce.stime = 0;
-                ssd_advance_status(ssd, &ppa, &gce);
+                ssd_advance_status(ssd, &ppa, &gce, TLC);
             }
 
             lunp->gc_endtime = lunp->next_lun_avail_time;
@@ -801,7 +849,7 @@ static uint64_t ssd_read(struct ssd *ssd, NvmeRequest *req)
         srd.type = USER_IO;
         srd.cmd = NAND_READ;
         srd.stime = req->stime;
-        sublat = ssd_advance_status(ssd, &ppa, &srd);
+        sublat = ssd_advance_status(ssd, &ppa, &srd, req->zone_flash_type);
         maxlat = (sublat > maxlat) ? sublat : maxlat;
     }
 
@@ -857,7 +905,7 @@ static uint64_t ssd_write(struct ssd *ssd, NvmeRequest *req)
         swr.cmd = NAND_WRITE;
         swr.stime = req->stime;
         /* get latency statistics */
-        curlat = ssd_advance_status(ssd, &ppa, &swr);
+        curlat = ssd_advance_status(ssd, &ppa, &swr, req->zone_flash_type);
         maxlat = (curlat > maxlat) ? curlat : maxlat;
     }
 
@@ -892,6 +940,19 @@ static void *ftl_thread(void *arg)
             }
 
             ftl_assert(req);
+
+            //* by HH Check zone type *****************************
+            uint32_t zone_idx = (n->zone_size_log2 > 0 ? req->slba >> n->zone_size_log2 : req->slba /
+                    n->zone_size);
+
+            assert(zone_idx < n->num_zones);
+
+            NvmeZone *zone;
+            zone = n->zone_array;
+            zone += zone_idx;
+            req->zone_flash_type = zone->d.zone_flash_type;
+            //*******************************************************
+
             switch (req->cmd.opcode) {
             case NVME_CMD_WRITE:
                 lat = ssd_write(ssd, req);

@@ -795,10 +795,32 @@ static void bb_flip(FemuCtrl *n, NvmeCmd *cmd)
         femu_log("%s,FEMU GC Delay Emulation [Disabled]!\n", n->devname);
         break;
     case FEMU_ENABLE_DELAY_EMU:
-        ssd->sp.pg_rd_lat = NAND_READ_LATENCY;
-        ssd->sp.pg_wr_lat = NAND_PROG_LATENCY;
-        ssd->sp.blk_er_lat = NAND_ERASE_LATENCY;
+        ssd->sp.pg_rd_lat = NAND_TLC_READ_LATENCY;
+        ssd->sp.pg_wr_lat = NAND_TLC_PROG_LATENCY;
+        ssd->sp.blk_er_lat = NAND_TLC_ERASE_LATENCY;
         ssd->sp.ch_xfer_lat = 0;
+        //* by HH *********************************************
+        // ssd->sp.pg_slc_rd_lat = NAND_TLC_READ_LATENCY * 2.5;
+        // ssd->sp.pg_slc_wr_lat = NAND_TLC_PROG_LATENCY * 2.5;
+        // ssd->sp.blk_slc_er_lat = NAND_TLC_ERASE_LATENCY * 2.5;
+        // ssd->sp.ch_slc_xfer_lat = 0;
+
+        // ssd->sp.pg_mlc_rd_lat = NAND_TLC_READ_LATENCY * 1.5;
+        // ssd->sp.pg_mlc_wr_lat = NAND_TLC_PROG_LATENCY * 1.5;
+        // ssd->sp.blk_mlc_er_lat = NAND_TLC_ERASE_LATENCY * 1.5;
+        // ssd->sp.ch_mlc_xfer_lat = 0;
+
+        // ssd->sp.pg_tlc_rd_lat = NAND_TLC_READ_LATENCY;
+        // ssd->sp.pg_tlc_wr_lat = NAND_TLC_PROG_LATENCY;
+        // ssd->sp.blk_tlc_er_lat = NAND_TLC_ERASE_LATENCY;
+        // ssd->sp.ch_tlc_xfer_lat = 0;
+
+        // ssd->sp.pg_qlc_rd_lat = NAND_TLC_READ_LATENCY * 0.7;
+        // ssd->sp.pg_qlc_wr_lat = NAND_TLC_PROG_LATENCY * 0.7;
+        // ssd->sp.blk_qlc_er_lat = NAND_TLC_ERASE_LATENCY * 0.7;
+        // ssd->sp.ch_qlc_xfer_lat = 0;
+        // *****************************************************
+
         femu_log("%s,FEMU Delay Emulation [Enabled]!\n", n->devname);
         break;
     case FEMU_DISABLE_DELAY_EMU:
@@ -806,6 +828,28 @@ static void bb_flip(FemuCtrl *n, NvmeCmd *cmd)
         ssd->sp.pg_wr_lat = 0;
         ssd->sp.blk_er_lat = 0;
         ssd->sp.ch_xfer_lat = 0;
+        //* by HH *********************************************
+        // ssd->sp.pg_slc_rd_lat = 0;
+        // ssd->sp.pg_slc_wr_lat = 0;
+        // ssd->sp.blk_slc_er_lat = 0;
+        // ssd->sp.ch_slc_xfer_lat = 0;
+
+        // ssd->sp.pg_mlc_rd_lat = 0;
+        // ssd->sp.pg_mlc_wr_lat = 0;
+        // ssd->sp.blk_mlc_er_lat = 0;
+        // ssd->sp.ch_mlc_xfer_lat = 0;
+
+        // ssd->sp.pg_tlc_rd_lat = 0;
+        // ssd->sp.pg_tlc_wr_lat = 0;
+        // ssd->sp.blk_tlc_er_lat = 0;
+        // ssd->sp.ch_tlc_xfer_lat = 0;
+
+        // ssd->sp.pg_qlc_rd_lat = 0;
+        // ssd->sp.pg_qlc_wr_lat = 0;
+        // ssd->sp.blk_qlc_er_lat = 0;
+        // ssd->sp.ch_qlc_xfer_lat = 0;
+        // *****************************************************
+
         femu_log("%s,FEMU Delay Emulation [Disabled]!\n", n->devname);
         break;
     case FEMU_RESET_ACCT:

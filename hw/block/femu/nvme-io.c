@@ -121,6 +121,7 @@ static uint64_t zns_advance_zone_wp(NvmeNamespace *ns, NvmeZone *zone,
     uint8_t zs;
 
     zone->w_ptr += nlb;
+    printf("zone->w_ptr: %ld, nlb: %d\n", zone->w_ptr, nlb);
 
     if (zone->w_ptr < zns_zone_wr_boundary(zone)) {
         zs = zns_get_zone_state(zone);
@@ -293,6 +294,8 @@ static void zns_finalize_zoned_write(NvmeNamespace *ns, NvmeRequest *req,
     zone = zns_get_zone_by_slba(ns, slba);
 
     zone->d.wp += nlb;
+
+    printf("slba: %ld, zone->d.wp: %ld, nlb: %d\n", req->slba, zone->d.wp, nlb);
 
     if (failed) {
         res->slba = 0;

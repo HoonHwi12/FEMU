@@ -1,5 +1,6 @@
 {
     "files.associations": {
-        "zns.h": "c"
+        "zns.h": "c",
+        "*.inc": "c"
     }
 }

@@ -994,6 +994,8 @@ typedef struct NvmeRequest {
 
     /* ZNS */
     void                    *opaque;
+    //* by HH: ZONE flash type
+    uint16_t                 zone_flash_type;
 
     /* position in the priority queue for delay emulation */
     size_t                  pos;
