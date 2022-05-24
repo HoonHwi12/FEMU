@@ -199,7 +199,7 @@ static void zns_assign_zone_state(NvmeNamespace *ns, NvmeZone *zone,
             ;
         }
     }
-printf("hoon zns_assign_zone_state\n");
+
     zns_set_zone_state(zone, state);
 
     switch (state) {

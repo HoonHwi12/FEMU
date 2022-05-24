@@ -669,10 +669,13 @@ uint16_t nvme_rw(FemuCtrl *n, NvmeNamespace *ns, NvmeCmd *cmd, NvmeRequest *req)
     err = femu_nvme_rw_check_req(n, ns, cmd, req, slba, elba, nlb, ctrl,
                                  data_size, meta_size);
     if (err)
+    {
         femu_err("nvme_rw_check error\n");
         return err;
+    }
 
-    if (nvme_map_prp(&req->qsg, &req->iov, prp1, prp2, data_size, n)) {
+    if (nvme_map_prp(&req->qsg, &req->iov, prp1, prp2, data_size, n))
+    {
         nvme_set_error_page(n, req->sq->sqid, cmd->cid, NVME_INVALID_FIELD,
                             offsetof(NvmeRwCmd, prp1), 0, ns->id);
         femu_err("map prp error\n");
@@ -685,12 +688,6 @@ uint16_t nvme_rw(FemuCtrl *n, NvmeNamespace *ns, NvmeCmd *cmd, NvmeRequest *req)
     req->status = NVME_SUCCESS;
     req->nlb = nlb;
 
-    // ret = backend_rw(n->mbe, &req->qsg, &data_offset, req->is_write);
-    // if (!ret) {
-    //     return NVME_SUCCESS;
-    // }
-
-    // return NVME_DNR;
 
     // by HH: ZNS IO check /////////////////////////////////////////////////
     NvmeZone *zone;
