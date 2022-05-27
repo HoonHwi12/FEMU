@@ -7,6 +7,10 @@
 #define INVALID_LPN     (~(0ULL))
 #define UNMAPPED_PPA    (~(0ULL))
 
+#define SLC_LATENCY_COEFFIENTY  0.3
+#define MLC_LATENCY_COEFFIENTY  0.6
+#define QLC_LATENCY_COEFFIENTY  1.5
+
 enum {
     NAND_READ =  0,
     NAND_WRITE = 1,
@@ -119,31 +123,31 @@ struct ssdparams {
     int luns_per_ch;  /* # of LUNs per channel */
     int nchs;         /* # of channels in the SSD */
 
-    int pg_rd_lat;    /* NAND page read latency in nanoseconds */
-    int pg_wr_lat;    /* NAND page program latency in nanoseconds */
-    int blk_er_lat;   /* NAND block erase latency in nanoseconds */
-    int ch_xfer_lat;  /* channel transfer latency for one page in nanoseconds */
+    // int pg_rd_lat;    /* NAND page read latency in nanoseconds */
+    // int pg_wr_lat;    /* NAND page program latency in nanoseconds */
+    // int blk_er_lat;   /* NAND block erase latency in nanoseconds */
+    // int ch_xfer_lat;  /* channel transfer latency for one page in nanoseconds */
 
     //* by HH ////////////////////////////////////////////////////////
-    // int pg_slc_rd_lat;  
-    // int pg_slc_wr_lat;  
-    // int blk_slc_er_lat; 
-    // int ch_slc_xfer_lat;
+    int pg_slc_rd_lat;  
+    int pg_slc_wr_lat;  
+    int blk_slc_er_lat; 
+    int ch_slc_xfer_lat;
 
-    // int pg_mlc_rd_lat;   
-    // int pg_mlc_wr_lat;  
-    // int blk_mlc_er_lat;
-    // int ch_mlc_xfer_lat;
+    int pg_mlc_rd_lat;   
+    int pg_mlc_wr_lat;  
+    int blk_mlc_er_lat;
+    int ch_mlc_xfer_lat;
 
-    // int pg_tlc_rd_lat;   
-    // int pg_tlc_wr_lat;  
-    // int blk_tlc_er_lat; 
-    // int ch_tlc_xfer_lat;        
+    int pg_tlc_rd_lat;   
+    int pg_tlc_wr_lat;  
+    int blk_tlc_er_lat; 
+    int ch_tlc_xfer_lat;        
 
-    // int pg_qlc_rd_lat;  
-    // int pg_qlc_wr_lat;  
-    // int blk_qlc_er_lat;  
-    //int ch_qlc_xfer_lat;    
+    int pg_qlc_rd_lat;  
+    int pg_qlc_wr_lat;  
+    int blk_qlc_er_lat;  
+    int ch_qlc_xfer_lat;    
     // *****************************************************************
 
     double gc_thres_pcent;

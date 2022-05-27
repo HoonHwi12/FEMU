@@ -245,30 +245,30 @@ static void ssd_init_params(FemuCtrl *n, struct ssdparams *spp)
     spp->luns_per_ch = 8;
     spp->nchs = 8;
 
-    spp->pg_rd_lat = NAND_TLC_READ_LATENCY;
-    spp->pg_wr_lat = NAND_TLC_PROG_LATENCY;
-    spp->blk_er_lat = NAND_TLC_ERASE_LATENCY;
-    spp->ch_xfer_lat = 0;
+    // spp->pg_rd_lat = NAND_TLC_READ_LATENCY;
+    // spp->pg_wr_lat = NAND_TLC_PROG_LATENCY;
+    // spp->blk_er_lat = NAND_TLC_ERASE_LATENCY;
+    // spp->ch_xfer_lat = 0;
     //* by HH *********************************************  
-    // spp->pg_slc_rd_lat = NAND_TLC_READ_LATENCY * 2.5;
-    // spp->pg_slc_wr_lat = NAND_TLC_PROG_LATENCY * 2.5;
-    // spp->blk_slc_er_lat = NAND_TLC_ERASE_LATENCY * 2.5;
-    // spp->ch_slc_xfer_lat = 0;
+    spp->pg_slc_rd_lat = NAND_TLC_READ_LATENCY * SLC_LATENCY_COEFFIENTY;
+    spp->pg_slc_wr_lat = NAND_TLC_PROG_LATENCY * SLC_LATENCY_COEFFIENTY;
+    spp->blk_slc_er_lat = NAND_TLC_ERASE_LATENCY * SLC_LATENCY_COEFFIENTY;
+    spp->ch_slc_xfer_lat = 0;
 
-    // spp->pg_mlc_rd_lat = NAND_TLC_READ_LATENCY * 1.5;
-    // spp->pg_mlc_wr_lat = NAND_TLC_PROG_LATENCY * 1.5;
-    // spp->blk_mlc_er_lat = NAND_TLC_ERASE_LATENCY * 1.5;
-    // spp->ch_mlc_xfer_lat = 0;
+    spp->pg_mlc_rd_lat = NAND_TLC_READ_LATENCY * MLC_LATENCY_COEFFIENTY;
+    spp->pg_mlc_wr_lat = NAND_TLC_PROG_LATENCY * MLC_LATENCY_COEFFIENTY;
+    spp->blk_mlc_er_lat = NAND_TLC_ERASE_LATENCY * MLC_LATENCY_COEFFIENTY;
+    spp->ch_mlc_xfer_lat = 0;
 
-    // spp->pg_tlc_rd_lat = NAND_TLC_READ_LATENCY;
-    // spp->pg_tlc_wr_lat = NAND_TLC_PROG_LATENCY;
-    // spp->blk_tlc_er_lat = NAND_TLC_ERASE_LATENCY;
-    // spp->ch_tlc_xfer_lat = 0;
+    spp->pg_tlc_rd_lat = NAND_TLC_READ_LATENCY;
+    spp->pg_tlc_wr_lat = NAND_TLC_PROG_LATENCY;
+    spp->blk_tlc_er_lat = NAND_TLC_ERASE_LATENCY;
+    spp->ch_tlc_xfer_lat = 0;
 
-    // spp->pg_qlc_rd_lat = NAND_TLC_READ_LATENCY * 0.7;
-    // spp->pg_qlc_wr_lat = NAND_TLC_PROG_LATENCY * 0.7;
-    // spp->blk_qlc_er_lat = NAND_TLC_ERASE_LATENCY * 0.7;
-    // spp->ch_qlc_xfer_lat = 0;
+    spp->pg_qlc_rd_lat = NAND_TLC_READ_LATENCY * QLC_LATENCY_COEFFIENTY;
+    spp->pg_qlc_wr_lat = NAND_TLC_PROG_LATENCY * QLC_LATENCY_COEFFIENTY;
+    spp->blk_qlc_er_lat = NAND_TLC_ERASE_LATENCY * QLC_LATENCY_COEFFIENTY;
+    spp->ch_qlc_xfer_lat = 0;
     // *****************************************************
 
     /* calculated values */
@@ -496,12 +496,12 @@ static uint64_t ssd_advance_status(struct ssd *ssd, struct ppa *ppa, struct
         nand_stime = (lun->next_lun_avail_time < cmd_stime) ? cmd_stime : \
                      lun->next_lun_avail_time;
 
-        lun->next_lun_avail_time = nand_stime + spp->pg_rd_lat;
+        // lun->next_lun_avail_time = nand_stime + spp->pg_rd_lat;
         //* by HH
-        // if(flash_type == SLC) lun->next_lun_avail_time = nand_stime + spp->pg_slc_rd_lat;
-        // else if(flash_type == MLC) lun->next_lun_avail_time = nand_stime + spp->pg_mlc_rd_lat;
-        // else if(flash_type == TLC) lun->next_lun_avail_time = nand_stime + spp->pg_tlc_rd_lat;
-        // else if(flash_type) lun->next_lun_avail_time = nand_stime + spp->pg_qlc_rd_lat;
+        if(flash_type == SLC) lun->next_lun_avail_time = nand_stime + spp->pg_slc_rd_lat;
+        else if(flash_type == MLC) lun->next_lun_avail_time = nand_stime + spp->pg_mlc_rd_lat;
+        else if(flash_type == TLC) lun->next_lun_avail_time = nand_stime + spp->pg_tlc_rd_lat;
+        else if(flash_type == QLC) lun->next_lun_avail_time = nand_stime + spp->pg_qlc_rd_lat;
         //*******************
         lat = lun->next_lun_avail_time - cmd_stime;
 #if 0
@@ -521,20 +521,20 @@ static uint64_t ssd_advance_status(struct ssd *ssd, struct ppa *ppa, struct
         nand_stime = (lun->next_lun_avail_time < cmd_stime) ? cmd_stime : \
                      lun->next_lun_avail_time;
         if (ncmd->type == USER_IO) {
-            lun->next_lun_avail_time = nand_stime + spp->pg_wr_lat;
+            // lun->next_lun_avail_time = nand_stime + spp->pg_wr_lat;
             //* by HH *************
-            // if(flash_type == SLC) lun->next_lun_avail_time = nand_stime + spp->pg_slc_wr_lat;
-            // else if(flash_type == MLC) lun->next_lun_avail_time = nand_stime + spp->pg_mlc_wr_lat;
-            // else if(flash_type == TLC) lun->next_lun_avail_time = nand_stime + spp->pg_tlc_wr_lat;
-            // else if(flash_type == QLC) lun->next_lun_avail_time = nand_stime + spp->pg_qlc_wr_lat;
+            if(flash_type == SLC) lun->next_lun_avail_time = nand_stime + spp->pg_slc_wr_lat;
+            else if(flash_type == MLC) lun->next_lun_avail_time = nand_stime + spp->pg_mlc_wr_lat;
+            else if(flash_type == TLC) lun->next_lun_avail_time = nand_stime + spp->pg_tlc_wr_lat;
+            else if(flash_type == QLC) lun->next_lun_avail_time = nand_stime + spp->pg_qlc_wr_lat;
             //***********************
         } else {
-            lun->next_lun_avail_time = nand_stime + spp->pg_wr_lat;
+            // lun->next_lun_avail_time = nand_stime + spp->pg_wr_lat;
             //* by HH *************
-            // if(flash_type == SLC) lun->next_lun_avail_time = nand_stime + spp->pg_slc_wr_lat;
-            // else if(flash_type == MLC) lun->next_lun_avail_time = nand_stime + spp->pg_mlc_wr_lat;
-            // else if(flash_type == TLC) lun->next_lun_avail_time = nand_stime + spp->pg_tlc_wr_lat;
-            // else if(flash_type == QLC) lun->next_lun_avail_time = nand_stime + spp->pg_qlc_wr_lat;
+            if(flash_type == SLC) lun->next_lun_avail_time = nand_stime + spp->pg_slc_wr_lat;
+            else if(flash_type == MLC) lun->next_lun_avail_time = nand_stime + spp->pg_mlc_wr_lat;
+            else if(flash_type == TLC) lun->next_lun_avail_time = nand_stime + spp->pg_tlc_wr_lat;
+            else if(flash_type == QLC) lun->next_lun_avail_time = nand_stime + spp->pg_qlc_wr_lat;
             //***********************
         }
         lat = lun->next_lun_avail_time - cmd_stime;
@@ -558,12 +558,12 @@ static uint64_t ssd_advance_status(struct ssd *ssd, struct ppa *ppa, struct
         nand_stime = (lun->next_lun_avail_time < cmd_stime) ? cmd_stime : \
                      lun->next_lun_avail_time;
 
-        lun->next_lun_avail_time = nand_stime + spp->blk_er_lat;
+        // lun->next_lun_avail_time = nand_stime + spp->blk_er_lat;
         //* by HH *************
-        // if(flash_type == SLC) lun->next_lun_avail_time = nand_stime + spp->blk_slc_er_lat;
-        // else if(flash_type == MLC) lun->next_lun_avail_time = nand_stime + spp->blk_mlc_er_lat;
-        // else if(flash_type == TLC) lun->next_lun_avail_time = nand_stime + spp->blk_tlc_er_lat;
-        // else if(flash_type == QLC) lun->next_lun_avail_time = nand_stime + spp->blk_qlc_er_lat;
+        if(flash_type == SLC) lun->next_lun_avail_time = nand_stime + spp->blk_slc_er_lat;
+        else if(flash_type == MLC) lun->next_lun_avail_time = nand_stime + spp->blk_mlc_er_lat;
+        else if(flash_type == TLC) lun->next_lun_avail_time = nand_stime + spp->blk_tlc_er_lat;
+        else if(flash_type == QLC) lun->next_lun_avail_time = nand_stime + spp->blk_qlc_er_lat;
         //***********************
 
         lat = lun->next_lun_avail_time - cmd_stime;

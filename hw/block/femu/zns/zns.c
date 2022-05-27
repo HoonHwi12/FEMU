@@ -280,12 +280,14 @@ static void zns_assign_zone_state(NvmeNamespace *ns, NvmeZone *zone,
 static int zns_aor_check(NvmeNamespace *ns, uint32_t act, uint32_t opn)
 {
     FemuCtrl *n = ns->ctrl;
-    if (n->max_active_zones != 0 &&
-        n->nr_active_zones + act > n->max_active_zones) {
+    if (n->max_active_zones != 0 && n->nr_active_zones + act > n->max_active_zones)
+    {
+        printf("too many active! max_active: %d, nr_active: %d\n", n->max_active_zones, n->nr_active_zones);
         return NVME_ZONE_TOO_MANY_ACTIVE | NVME_DNR;
     }
-    if (n->max_open_zones != 0 &&
-        n->nr_open_zones + opn > n->max_open_zones) {
+    if (n->max_open_zones != 0 && n->nr_open_zones + opn > n->max_open_zones)
+    {
+        printf("too many open! max_open: %d, nr_open: %d\n", n->max_open_zones, n->nr_open_zones);
         return NVME_ZONE_TOO_MANY_OPEN | NVME_DNR;
     }
 

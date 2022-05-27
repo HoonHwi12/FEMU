@@ -74,7 +74,7 @@ typedef struct QEMU_PACKED NvmeZoneDescr {
     uint64_t    wp;
     //uint8_t     rsvd32[32];
 
-    // by HH
+    //* by HH: dummy
     uint64_t rd_lat_ns;
     uint64_t wr_lat_ns;
     uint64_t er_lat_ns;

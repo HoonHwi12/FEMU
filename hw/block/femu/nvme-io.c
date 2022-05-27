@@ -44,7 +44,7 @@ static void zns_assign_zone_state(NvmeNamespace *ns, NvmeZone *zone,
             ;
         }
     }
-
+    
     zns_set_zone_state(zone, state);
 
     switch (state) {
@@ -86,12 +86,14 @@ static void zns_auto_transition_zone(NvmeNamespace *ns)
 static int zns_aor_check(NvmeNamespace *ns, uint32_t act, uint32_t opn)
 {
     FemuCtrl *n = ns->ctrl;
-    if (n->max_active_zones != 0 &&
-        n->nr_active_zones + act > n->max_active_zones) {
+    if (n->max_active_zones != 0 && n->nr_active_zones + act > n->max_active_zones)
+    {
+        printf("too many active! max_active: %d, nr_active: %d\n", n->max_active_zones, n->nr_active_zones);
         return NVME_ZONE_TOO_MANY_ACTIVE | NVME_DNR;
     }
-    if (n->max_open_zones != 0 &&
-        n->nr_open_zones + opn > n->max_open_zones) {
+    if (n->max_open_zones != 0 && n->nr_open_zones + opn > n->max_open_zones)
+    {
+        printf("too many open! max_open: %d, nr_open: %d\n", n->max_open_zones, n->nr_open_zones);
         return NVME_ZONE_TOO_MANY_OPEN | NVME_DNR;
     }
 
@@ -121,7 +123,6 @@ static uint64_t zns_advance_zone_wp(NvmeNamespace *ns, NvmeZone *zone,
     uint8_t zs;
 
     zone->w_ptr += nlb;
-    printf("zone->w_ptr: %ld, nlb: %d\n", zone->w_ptr, nlb);
 
     if (zone->w_ptr < zns_zone_wr_boundary(zone)) {
         zs = zns_get_zone_state(zone);
@@ -295,8 +296,6 @@ static void zns_finalize_zoned_write(NvmeNamespace *ns, NvmeRequest *req,
 
     zone->d.wp += nlb;
 
-    printf("slba: %ld, zone->d.wp: %ld, nlb: %d\n", req->slba, zone->d.wp, nlb);
-
     if (failed) {
         res->slba = 0;
     }
@@ -306,14 +305,18 @@ static void zns_finalize_zoned_write(NvmeNamespace *ns, NvmeRequest *req,
         case NVME_ZONE_STATE_IMPLICITLY_OPEN:
         case NVME_ZONE_STATE_EXPLICITLY_OPEN:
             zns_aor_dec_open(ns);
+
             /* fall through */
         case NVME_ZONE_STATE_CLOSED:
             zns_aor_dec_active(ns);
             /* fall through */
         case NVME_ZONE_STATE_EMPTY:
+
             zns_assign_zone_state(ns, zone, NVME_ZONE_STATE_FULL);
+
             /* fall through */
         case NVME_ZONE_STATE_FULL:
+            
             break;
         default:
             assert(false);

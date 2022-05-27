@@ -952,7 +952,7 @@ static uint16_t nvme_format(FemuCtrl *n, NvmeCmd *cmd)
 
 
 
-// by HH: change flash type / print zones / config control /////////////////////////////////////////////
+//* by HH: change flash type / print zones / config control /////////////////////////////////////////////
 #include "zns/zns.h"
 static uint16_t nvme_change_flash_type(FemuCtrl *n, NvmeCmd *cmd)
 {
@@ -979,33 +979,33 @@ static uint16_t nvme_change_flash_type(FemuCtrl *n, NvmeCmd *cmd)
     if (start + zone_size > capacity) {
         zone_size = capacity - start;
     }
-    zone->d.zt = NVME_ZONE_TYPE_SEQ_WRITE;
+    //zone->d.zt = NVME_ZONE_TYPE_SEQ_WRITE;
     zns_set_zone_state(zone, NVME_ZONE_STATE_EMPTY);
     zone->d.za = 0; // zone not active
     zone->d.zcap = n->zone_capacity;
     zone->d.zslba = start;
     zone->d.wp = start;
     zone->d.zone_flash_type = cmd->cdw11;
-    //n->flash_type = cmd->cdw11;
+    n->flash_type = cmd->cdw11;
     zone->w_ptr = start;
 
-
-    if (zone->d.zone_flash_type == TLC) {
-        zone->d.rd_lat_ns = TLC_UPPER_PAGE_READ_LATENCY_NS;
-        zone->d.wr_lat_ns = TLC_UPPER_PAGE_WRITE_LATENCY_NS;
-        zone->d.er_lat_ns = TLC_BLOCK_ERASE_LATENCY_NS;
-        zone->d.chnl_pg_xfer_lat_ns = TLC_CHNL_PAGE_TRANSFER_LATENCY_NS;
-    } else if (zone->d.zone_flash_type == QLC) {
-        zone->d.rd_lat_ns  = QLC_UPPER_PAGE_READ_LATENCY_NS;
-        zone->d.wr_lat_ns  = QLC_LOWER_PAGE_WRITE_LATENCY_NS;
-        zone->d.er_lat_ns  = QLC_BLOCK_ERASE_LATENCY_NS;
-        zone->d.chnl_pg_xfer_lat_ns = QLC_CHNL_PAGE_TRANSFER_LATENCY_NS;
-    } else if (zone->d.zone_flash_type == MLC) {
-        zone->d.rd_lat_ns = MLC_UPPER_PAGE_READ_LATENCY_NS;
-        zone->d.wr_lat_ns = MLC_LOWER_PAGE_WRITE_LATENCY_NS;
-        zone->d.er_lat_ns = MLC_BLOCK_ERASE_LATENCY_NS;
-        zone->d.chnl_pg_xfer_lat_ns = MLC_CHNL_PAGE_TRANSFER_LATENCY_NS;
-    }
+    //* by HH: dummy
+    // if (zone->d.zone_flash_type == TLC) {
+    //     zone->d.rd_lat_ns = TLC_UPPER_PAGE_READ_LATENCY_NS;
+    //     zone->d.wr_lat_ns = TLC_UPPER_PAGE_WRITE_LATENCY_NS;
+    //     zone->d.er_lat_ns = TLC_BLOCK_ERASE_LATENCY_NS;
+    //     zone->d.chnl_pg_xfer_lat_ns = TLC_CHNL_PAGE_TRANSFER_LATENCY_NS;
+    // } else if (zone->d.zone_flash_type == QLC) {
+    //     zone->d.rd_lat_ns  = QLC_UPPER_PAGE_READ_LATENCY_NS;
+    //     zone->d.wr_lat_ns  = QLC_LOWER_PAGE_WRITE_LATENCY_NS;
+    //     zone->d.er_lat_ns  = QLC_BLOCK_ERASE_LATENCY_NS;
+    //     zone->d.chnl_pg_xfer_lat_ns = QLC_CHNL_PAGE_TRANSFER_LATENCY_NS;
+    // } else if (zone->d.zone_flash_type == MLC) {
+    //     zone->d.rd_lat_ns = MLC_UPPER_PAGE_READ_LATENCY_NS;
+    //     zone->d.wr_lat_ns = MLC_LOWER_PAGE_WRITE_LATENCY_NS;
+    //     zone->d.er_lat_ns = MLC_BLOCK_ERASE_LATENCY_NS;
+    //     zone->d.chnl_pg_xfer_lat_ns = MLC_CHNL_PAGE_TRANSFER_LATENCY_NS;
+    // }
 
     return NVME_SUCCESS;
 }
@@ -1017,19 +1017,18 @@ static uint16_t nvme_print_flash_type(FemuCtrl *n, NvmeCmd *cmd)
     zone = n->zone_array;
 
     printf("\n");
-    printf("%15sslba %3scapacity %4swptr %6sstate %6stype %2sfalsh%4slatency_ns w/r/e\n",
-    "","","","","","","");
+    printf("%15sslba %3scapacity %4swptr %6sstate %6stype %2sfalsh\n",
+    "","","","","","");
     for(int i=0; i<n->num_zones; i++, zone++)
     {
-        printf("   [zone#%2d] 0x%06lx | 0x%05lx | 0x%06lx | %12s | %6s | %s | %.3ld %.3ld %.3ld\n",
+        printf("   [zone#%2d] 0x%06lx | 0x%05lx | 0x%06lx | %12s | %6s | %s\n",
         i, zone->d.zslba, zone->d.zcap, zone->d.wp,
         zone->d.zs>>4==0?"Rsrved":zone->d.zs>>4==1?"Empty":zone->d.zs>>4==2?"ImplicOpen" \
         :zone->d.zs>>4==3?"ExpliOpen":zone->d.zs>>4==4?"Closed":zone->d.zs>>4==0xD?"RdOnly" \
         :zone->d.zs>>4==0xE?"Full":zone->d.zs>>4==0xF?"Offline":"Unknown"
         ,zone->d.zt==0?"Rsrved":"SeqW"
         ,zone->d.zone_flash_type==1?"SLC":zone->d.zone_flash_type==2?"MLC"\
-        :zone->d.zone_flash_type==3?"TLC":zone->d.zone_flash_type==4?"QLC":"Unknown"
-        ,zone->d.wr_lat_ns, zone->d.rd_lat_ns, zone->d.er_lat_ns);
+        :zone->d.zone_flash_type==3?"TLC":zone->d.zone_flash_type==4?"QLC":"Unknown");
     }
 
     return NVME_SUCCESS;
@@ -1049,6 +1048,7 @@ static uint16_t nvme_zconfig_control(FemuCtrl *n, NvmeCmd *cmd)
         // else if(n->femu_mode == FEMU_BBSSD_MODE) nvme_register_bbssd(n);
         // else if(n->femu_mode == FEMU_ZBBSSD_MODE) nvme_register_bbssd(n);
     }
+    printf("cdw10: %d, cdw11: %d",cmd->cdw10,cmd->cdw11);
 
     NvmeNamespace *ns = &n->namespaces[0];
 
@@ -1056,16 +1056,17 @@ static uint16_t nvme_zconfig_control(FemuCtrl *n, NvmeCmd *cmd)
     // if(n->femu_mode == FEMU_ZNSSD_MODE)
     // {
         NvmeIdNsZoned *id_ns_z;
+        id_ns_z = n->id_ns_zoned;
 
         uint64_t start = 0, zone_size = n->zone_size;
         uint64_t capacity = n->num_zones * zone_size;
         NvmeZone *zone;
         int i;
 
-        n->zone_array = g_new0(NvmeZone, n->num_zones);
-        if (n->zd_extension_size) {
-            n->zd_extensions = g_malloc0(n->zd_extension_size * n->num_zones);
-        }
+        //n->zone_array = g_new0(NvmeZone, n->num_zones);
+        // if (n->zd_extension_size) {
+        //     n->zd_extensions = g_malloc0(n->zd_extension_size * n->num_zones);
+        // }
 
         QTAILQ_INIT(&n->exp_open_zones);
         QTAILQ_INIT(&n->imp_open_zones);
@@ -1073,8 +1074,10 @@ static uint16_t nvme_zconfig_control(FemuCtrl *n, NvmeCmd *cmd)
         QTAILQ_INIT(&n->full_zones);
 
         zone = n->zone_array;
-        for (i = 0; i < n->num_zones; i++, zone++) {
-            if (start + zone_size > capacity) {
+        for (i = 0; i < n->num_zones; i++, zone++)
+        {
+            if (start + zone_size > capacity)
+            {
                 zone_size = capacity - start;
             }
             zone->d.zt = NVME_ZONE_TYPE_SEQ_WRITE;
@@ -1083,17 +1086,18 @@ static uint16_t nvme_zconfig_control(FemuCtrl *n, NvmeCmd *cmd)
             zone->d.zcap = n->zone_capacity;
             zone->d.zslba = start;
             zone->d.wp = start;
+            
             zone->d.zone_flash_type = n->flash_type;
             zone->w_ptr = start;
             start += zone_size;
         }
 
-        n->zone_size_log2 = 0;
+        // n->zone_size_log2 = 0;
         if (is_power_of_2(n->zone_size)) {
             n->zone_size_log2 = 63 - clz64(n->zone_size);
         }
 
-        id_ns_z = g_malloc0(sizeof(NvmeIdNsZoned));
+        //id_ns_z = g_malloc0(sizeof(NvmeIdNsZoned));
 
         /* MAR/MOR are zeroes-based, 0xffffffff means no limit */
         id_ns_z->mar = cpu_to_le32(n->max_active_zones - 1);

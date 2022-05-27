@@ -1,6 +1,7 @@
 {
     "files.associations": {
         "zns.h": "c",
-        "*.inc": "c"
+        "*.inc": "c",
+        "ftl.h": "c"
     }
 }

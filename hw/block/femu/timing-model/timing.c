@@ -34,99 +34,40 @@ void set_latency(FemuCtrl *n)
         n->chnl_pg_xfer_lat_ns = MLC_CHNL_PAGE_TRANSFER_LATENCY_NS;
     }
 
-    //* by HH *********************************************
-    NvmeZone *zone = n->zone_array;
-    for(int i=0; i < n->num_zones; i++, zone++)
-    {
-        if(zone->d.zone_flash_type == SLC)
-        {
-            zone->d.rd_lat_ns = NAND_TLC_READ_LATENCY * 2.5;
-            zone->d.wr_lat_ns = NAND_TLC_PROG_LATENCY * 2.5;
-            zone->d.er_lat_ns = NAND_TLC_ERASE_LATENCY * 2.5;
-            zone->d.chnl_pg_xfer_lat_ns = 0;
-        }
-        else if(zone->d.zone_flash_type == MLC)
-        {
-            zone->d.rd_lat_ns = NAND_TLC_READ_LATENCY * 1.5;
-            zone->d.wr_lat_ns = NAND_TLC_PROG_LATENCY * 1.5;
-            zone->d.er_lat_ns = NAND_TLC_ERASE_LATENCY * 1.5;
-            zone->d.chnl_pg_xfer_lat_ns = 0;
-        }
-        else if(zone->d.zone_flash_type == QLC)
-        {
-            zone->d.rd_lat_ns = NAND_TLC_READ_LATENCY * 0.7;
-            zone->d.wr_lat_ns = NAND_TLC_PROG_LATENCY * 0.7;
-            zone->d.er_lat_ns = NAND_TLC_ERASE_LATENCY * 0.7;
-            zone->d.chnl_pg_xfer_lat_ns = 0;
-        }
-        else
-        {
-            zone->d.rd_lat_ns = NAND_TLC_READ_LATENCY;
-            zone->d.wr_lat_ns = NAND_TLC_PROG_LATENCY;
-            zone->d.er_lat_ns = NAND_TLC_ERASE_LATENCY;
-            zone->d.chnl_pg_xfer_lat_ns = 0;
-        }
-    }
-    // *****************************************************
-
-
-    // by HH: set zone unit latency
+    //* by HH: dummy *********************************************
     // NvmeZone *zone = n->zone_array;
     // for(int i=0; i < n->num_zones; i++, zone++)
     // {
-    //     if(zone->d.zone_flash_type == SLC) {
-
-    //         zone->d.rd_lat_ns = SLC_RD_LATENCY_NS;
-    //         zone->d.wr_lat_ns = SLC_WR_LATENCY_NS;
-    //         zone->d.er_lat_ns = SLC_ER_LATENCY_NS;
-    //         zone->d.chnl_pg_xfer_lat_ns = SLC_XFER_LATENCY_NS;
+    //     if(zone->d.zone_flash_type == SLC)
+    //     {
+    //         zone->d.rd_lat_ns = NAND_TLC_READ_LATENCY * 2.5;
+    //         zone->d.wr_lat_ns = NAND_TLC_PROG_LATENCY * 2.5;
+    //         zone->d.er_lat_ns = NAND_TLC_ERASE_LATENCY * 2.5;
+    //         zone->d.chnl_pg_xfer_lat_ns = 0;
     //     }
-    //     else if (zone->d.zone_flash_type == MLC) {
-    //         zone->d.rd_lat_ns = MLC_RD_LATENCY_NS;
-    //         zone->d.wr_lat_ns = MLC_WR_LATENCY_NS;
-    //         zone->d.er_lat_ns = MLC_ER_LATENCY_NS;
-    //         zone->d.chnl_pg_xfer_lat_ns = MLC_XFER_LATENCY_NS;
-    //     } else if (zone->d.zone_flash_type == TLC) {
-    //         zone->d.rd_lat_ns = TLC_RD_LATENCY_NS;
-    //         zone->d.wr_lat_ns = TLC_WR_LATENCY_NS;
-    //         zone->d.er_lat_ns = TLC_ER_LATENCY_NS;
-    //         zone->d.chnl_pg_xfer_lat_ns = TLC_XFER_LATENCY_NS;
-    //     } else if (zone->d.zone_flash_type == QLC) {
-    //         zone->d.rd_lat_ns = QLC_RD_LATENCY_NS;
-    //         zone->d.wr_lat_ns = QLC_WR_LATENCY_NS;
-    //         zone->d.er_lat_ns = QLC_ER_LATENCY_NS;
-    //         zone->d.chnl_pg_xfer_lat_ns = QLC_XFER_LATENCY_NS;
+    //     else if(zone->d.zone_flash_type == MLC)
+    //     {
+    //         zone->d.rd_lat_ns = NAND_TLC_READ_LATENCY * 1.5;
+    //         zone->d.wr_lat_ns = NAND_TLC_PROG_LATENCY * 1.5;
+    //         zone->d.er_lat_ns = NAND_TLC_ERASE_LATENCY * 1.5;
+    //         zone->d.chnl_pg_xfer_lat_ns = 0;
+    //     }
+    //     else if(zone->d.zone_flash_type == QLC)
+    //     {
+    //         zone->d.rd_lat_ns = NAND_TLC_READ_LATENCY * 0.7;
+    //         zone->d.wr_lat_ns = NAND_TLC_PROG_LATENCY * 0.7;
+    //         zone->d.er_lat_ns = NAND_TLC_ERASE_LATENCY * 0.7;
+    //         zone->d.chnl_pg_xfer_lat_ns = 0;
+    //     }
+    //     else
+    //     {
+    //         zone->d.rd_lat_ns = NAND_TLC_READ_LATENCY;
+    //         zone->d.wr_lat_ns = NAND_TLC_PROG_LATENCY;
+    //         zone->d.er_lat_ns = NAND_TLC_ERASE_LATENCY;
+    //         zone->d.chnl_pg_xfer_lat_ns = 0;
     //     }
     // }
-    // if (n->flash_type == TLC) {
-    //     n->upg_rd_lat_ns = TLC_UPPER_PAGE_READ_LATENCY_NS;
-    //     n->cpg_rd_lat_ns = TLC_CENTER_PAGE_READ_LATENCY_NS;
-    //     n->lpg_rd_lat_ns = TLC_LOWER_PAGE_READ_LATENCY_NS;
-    //     n->upg_wr_lat_ns = TLC_UPPER_PAGE_WRITE_LATENCY_NS;
-    //     n->cpg_wr_lat_ns = TLC_CENTER_PAGE_WRITE_LATENCY_NS;
-    //     n->lpg_wr_lat_ns = TLC_LOWER_PAGE_WRITE_LATENCY_NS;
-    //     n->blk_er_lat_ns = TLC_BLOCK_ERASE_LATENCY_NS;
-    //     n->chnl_pg_xfer_lat_ns = TLC_CHNL_PAGE_TRANSFER_LATENCY_NS;
-    // } else if (n->flash_type == QLC) {
-    //     n->upg_rd_lat_ns  = QLC_UPPER_PAGE_READ_LATENCY_NS;
-    //     n->cupg_rd_lat_ns = QLC_CENTER_UPPER_PAGE_READ_LATENCY_NS;
-    //     n->clpg_rd_lat_ns = QLC_CENTER_LOWER_PAGE_READ_LATENCY_NS;
-    //     n->lpg_rd_lat_ns  = QLC_LOWER_PAGE_READ_LATENCY_NS;
-    //     n->upg_wr_lat_ns  = QLC_UPPER_PAGE_WRITE_LATENCY_NS;
-    //     n->cupg_wr_lat_ns = QLC_CENTER_UPPER_PAGE_WRITE_LATENCY_NS;
-    //     n->clpg_wr_lat_ns = QLC_CENTER_LOWER_PAGE_WRITE_LATENCY_NS;
-    //     n->lpg_wr_lat_ns  = QLC_LOWER_PAGE_WRITE_LATENCY_NS;
-    //     n->blk_er_lat_ns  = QLC_BLOCK_ERASE_LATENCY_NS;
-    //     n->chnl_pg_xfer_lat_ns = QLC_CHNL_PAGE_TRANSFER_LATENCY_NS;
-    // } else if (n->flash_type == MLC) {
-    //     n->upg_rd_lat_ns = MLC_UPPER_PAGE_READ_LATENCY_NS;
-    //     n->lpg_rd_lat_ns = MLC_LOWER_PAGE_READ_LATENCY_NS;
-    //     n->upg_wr_lat_ns = MLC_UPPER_PAGE_WRITE_LATENCY_NS;
-    //     n->lpg_wr_lat_ns = MLC_LOWER_PAGE_WRITE_LATENCY_NS;
-    //     n->blk_er_lat_ns = MLC_BLOCK_ERASE_LATENCY_NS;
-    //     n->chnl_pg_xfer_lat_ns = MLC_CHNL_PAGE_TRANSFER_LATENCY_NS;
-    // }
-    // -----------------------------------------------------------------------------------
+    // *****************************************************
 }
 
 /*
