@@ -712,12 +712,15 @@ static uint16_t zns_zone_mgmt_recv(FemuCtrl *n, NvmeRequest *req)
 
             if (zns_wp_is_valid(zone)) {
                 z->wp = cpu_to_le64(zone->d.wp);
-            } else {
-                if(zns_get_zone_state(zone) == NVME_ZONE_STATE_FULL)
+            }else {
+                // if(zns_get_zone_state(zone) == NVME_ZONE_STATE_FULL)
+                // {
+                //     z->wp = cpu_to_le64(zone->d.wp);
+                // }
+                // else
                 {
-                    z->wp = cpu_to_le64(zone->d.wp);
+                    z->wp = cpu_to_le64(~0ULL);
                 }
-                else z->wp = cpu_to_le64(~0ULL);
             }
 
             if (zra == NVME_ZONE_REPORT_EXTENDED) {
