@@ -88,7 +88,7 @@ static int zns_aor_check(NvmeNamespace *ns, uint32_t act, uint32_t opn)
     FemuCtrl *n = ns->ctrl;
     if (n->max_active_zones != 0 && n->nr_active_zones + act > n->max_active_zones)
     {
-        printf("too many active! max_active: %d, nr_active: %d\n", n->max_active_zones, n->nr_active_zones);
+        printf("too many active! max_active: %d, nr_active: %d\n", n->max_active_zones, n->nr_active_zones+act);
         return NVME_ZONE_TOO_MANY_ACTIVE | NVME_DNR;
     }
     if (n->max_open_zones != 0 && n->nr_open_zones + opn > n->max_open_zones)
@@ -672,6 +672,43 @@ uint16_t nvme_rw(FemuCtrl *n, NvmeNamespace *ns, NvmeCmd *cmd, NvmeRequest *req)
 
     req->is_write = (rw->opcode == NVME_CMD_WRITE) ? 1 : 0;
 
+    NvmeZone *zone;
+/*
+    zone = n->zone_array;
+    int zone_log=0;
+    printf("opcode: 0x%x\n", cmd->opcode);
+    printf("nsid: 0x%x\n", cmd->nsid);
+    printf("cdw10: 0x%x\n", cmd->cdw10);
+    printf("cdw11: 0x%x\n", cmd->cdw11);
+    printf("cdw12: 0x%x\n", cmd->cdw12);
+    printf("cdw13: 0x%x\n", cmd->cdw13);
+    printf("cdw14: 0x%x\n", cmd->cdw14);
+    printf("cdw15: 0x%x\n", cmd->cdw15);
+
+    printf("\n\n");
+    printf("req opcode: 0x%x\n",req->cmd.opcode);
+    printf("req nsid: 0x%x\n", req->cmd.nsid);
+    printf("req cdw10: 0x%x\n", req->cmd.cdw10);
+    printf("req cdw11: 0x%x\n", req->cmd.cdw11);
+    printf("req cdw12: 0x%x\n", req->cmd.cdw12);
+    printf("req cdw13: 0x%x\n", req->cmd.cdw13);
+    printf("req cdw14: 0x%x\n", req->cmd.cdw14);
+    printf("req cdw15: 0x%x\n", req->cmd.cdw15);    
+    printf("req->cmd_opcode: 0x%x\n",req->cmd_opcode);
+     
+    
+    if(req->is_write)
+    {
+        while(zone->d.za != 0 )
+        {
+            zone++;
+            zone_log++;
+        }
+        printf("[zone %d's za is 0\n", zone_log);
+
+        
+    }
+*/
     err = femu_nvme_rw_check_req(n, ns, cmd, req, slba, elba, nlb, ctrl,
                                  data_size, meta_size);
     if (err)
@@ -696,7 +733,6 @@ uint16_t nvme_rw(FemuCtrl *n, NvmeNamespace *ns, NvmeCmd *cmd, NvmeRequest *req)
 
 
     // by HH: ZNS IO check /////////////////////////////////////////////////
-    NvmeZone *zone;
     zone = zns_get_zone_by_slba(ns, slba);
 
     //if (nvme_check_mdts(n, data_size)) {

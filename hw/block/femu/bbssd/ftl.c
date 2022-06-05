@@ -238,12 +238,18 @@ static void check_params(struct ssdparams *spp)
 static void ssd_init_params(FemuCtrl *n, struct ssdparams *spp)
 {
     spp->secsz = 512;
-    spp->secs_per_pg = 8;
-    spp->pgs_per_blk = 256;
-    spp->blks_per_pl = 256; /* 16GB */
+    // spp->secs_per_pg = 8;
+    // spp->pgs_per_blk = 256;
+    // spp->blks_per_pl = 256; /* 16GB */
+    spp->secs_per_pg = 32;
+    spp->pgs_per_blk = 512;
+    spp->blks_per_pl = 1024; /* 512GB */
     spp->pls_per_lun = 1;
     spp->luns_per_ch = 8;
-    spp->nchs = 8;
+
+    //* by HH: nb Channels
+    //spp->nchs = 8;
+    spp->nchs = 4;
 
     // spp->pg_rd_lat = NAND_TLC_READ_LATENCY;
     // spp->pg_wr_lat = NAND_TLC_PROG_LATENCY;

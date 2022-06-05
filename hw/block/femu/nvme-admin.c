@@ -331,8 +331,6 @@ static uint16_t nvme_identify_ns_csi(FemuCtrl *n, NvmeCmd *cmd)
     uint64_t prp2 = le64_to_cpu(cmd->dptr.prp2);
     int pgsz = n->page_size;
 
-    printf("prp1: %ld, prp2: %ld\n", prp1, prp2);
-
     if (!nvme_nsid_valid(n, nsid) || nsid == NVME_NSID_BROADCAST) {
         return NVME_INVALID_NSID | NVME_DNR;
     }
@@ -1017,6 +1015,8 @@ static uint16_t nvme_print_flash_type(FemuCtrl *n, NvmeCmd *cmd)
     zone = n->zone_array;
 
     printf("\n");
+    printf("zone_max_open: %d, zone_max_active: %d, zone_nr_open: %d, zone_nr_active: %d\n",
+        n->max_open_zones, n->max_active_zones, n->nr_open_zones, n->nr_active_zones);
     printf("%15sslba %3scapacity %4swptr %6sstate %6stype %2sfalsh\n",
     "","","","","","");
     for(int i=0; i<n->num_zones; i++, zone++)
@@ -1048,7 +1048,7 @@ static uint16_t nvme_zconfig_control(FemuCtrl *n, NvmeCmd *cmd)
         // else if(n->femu_mode == FEMU_BBSSD_MODE) nvme_register_bbssd(n);
         // else if(n->femu_mode == FEMU_ZBBSSD_MODE) nvme_register_bbssd(n);
     }
-    printf("cdw10: %d, cdw11: %d",cmd->cdw10,cmd->cdw11);
+    //printf("cdw10: %d, cdw11: %d",cmd->cdw10,cmd->cdw11);
 
     NvmeNamespace *ns = &n->namespaces[0];
 
@@ -1073,6 +1073,8 @@ static uint16_t nvme_zconfig_control(FemuCtrl *n, NvmeCmd *cmd)
         QTAILQ_INIT(&n->closed_zones);
         QTAILQ_INIT(&n->full_zones);
 
+        n->nr_active_zones = 0;
+        n->nr_open_zones = 0;
         zone = n->zone_array;
         for (i = 0; i < n->num_zones; i++, zone++)
         {
