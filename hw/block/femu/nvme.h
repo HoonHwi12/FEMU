@@ -332,6 +332,7 @@ enum NvmeAdminCommands {
     NVME_ADM_CMD_CHANGE_FLTYPE  = 0x89,
     NVME_ADM_CMD_PRINT_FLTYPE   = 0X90,
     NVME_ADM_CMD_CONIFG_CTL     = 0X91,
+    NVME_ADM_CMD_SET_DEBUG      = 0X92,
     // ------------------------------------------------------------------------------------------------------
 };
 
@@ -1502,16 +1503,17 @@ static inline uint16_t nvme_check_mdts(FemuCtrl *n, size_t len)
     do { printf("[FEMU] Log: " fmt, ## __VA_ARGS__); } while (0)
 
 // by HH: Custom debug log -----------------------------------------------------------------------------
-//#define HLOG
-#ifdef HLOG
+//#define H_DEBUG_LOG
+#ifdef H_DEBUG_LOG
 #define h_log(fmt, ...) \
     do { fprintf(stderr, "[hoonhwi] Log: " fmt, ## __VA_ARGS__); } while (0)        
 #endif // HLOG
 
-#ifndef HLOG
+#ifndef H_DEBUG_LOG
 #define h_log(fmt, ...) \
     do {  } while (0)        
 #endif // HLOG
+
 // -----------------------------------------------------------------------------------------------------
 
 #endif /* __FEMU_NVME_H */

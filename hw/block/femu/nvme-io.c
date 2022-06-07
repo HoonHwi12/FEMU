@@ -5,6 +5,8 @@ static uint16_t nvme_io_cmd(FemuCtrl *n, NvmeCmd *cmd, NvmeRequest *req);
 //by HH: ZNS function ////////////////////////////////////////////////////
 #include "zns/zns.h"
 
+extern bool H_TEST_LOG;
+
 static inline uint32_t zns_zone_idx(NvmeNamespace *ns, uint64_t slba)
 {
     FemuCtrl *n = ns->ctrl;
@@ -673,42 +675,44 @@ uint16_t nvme_rw(FemuCtrl *n, NvmeNamespace *ns, NvmeCmd *cmd, NvmeRequest *req)
     req->is_write = (rw->opcode == NVME_CMD_WRITE) ? 1 : 0;
 
     NvmeZone *zone;
-/*
-    zone = n->zone_array;
-    int zone_log=0;
-    printf("opcode: 0x%x\n", cmd->opcode);
-    printf("nsid: 0x%x\n", cmd->nsid);
-    printf("cdw10: 0x%x\n", cmd->cdw10);
-    printf("cdw11: 0x%x\n", cmd->cdw11);
-    printf("cdw12: 0x%x\n", cmd->cdw12);
-    printf("cdw13: 0x%x\n", cmd->cdw13);
-    printf("cdw14: 0x%x\n", cmd->cdw14);
-    printf("cdw15: 0x%x\n", cmd->cdw15);
 
-    printf("\n\n");
-    printf("req opcode: 0x%x\n",req->cmd.opcode);
-    printf("req nsid: 0x%x\n", req->cmd.nsid);
-    printf("req cdw10: 0x%x\n", req->cmd.cdw10);
-    printf("req cdw11: 0x%x\n", req->cmd.cdw11);
-    printf("req cdw12: 0x%x\n", req->cmd.cdw12);
-    printf("req cdw13: 0x%x\n", req->cmd.cdw13);
-    printf("req cdw14: 0x%x\n", req->cmd.cdw14);
-    printf("req cdw15: 0x%x\n", req->cmd.cdw15);    
-    printf("req->cmd_opcode: 0x%x\n",req->cmd_opcode);
-     
-    
-    if(req->is_write)
+    if(H_TEST_LOG)
     {
-        while(zone->d.za != 0 )
-        {
-            zone++;
-            zone_log++;
-        }
-        printf("[zone %d's za is 0\n", zone_log);
+        if(req->is_write)
+        {        
+            zone = n->zone_array;
+            int zone_log=0;
 
+            printf("\n\n");
+            printf("opcode: 0x%x\n", cmd->opcode);
+            printf("nsid: 0x%x\n", cmd->nsid);
+            printf("cdw10: 0x%x\n", cmd->cdw10);
+            printf("cdw11: 0x%x\n", cmd->cdw11);
+            printf("cdw12: 0x%x\n", cmd->cdw12);
+            printf("cdw13: 0x%x\n", cmd->cdw13);
+            printf("cdw14: 0x%x\n", cmd->cdw14);
+            printf("cdw15: 0x%x\n", cmd->cdw15);
+
+            printf("req opcode: 0x%x\n",req->cmd.opcode);
+            printf("req nsid: 0x%x\n", req->cmd.nsid);
+            printf("req cdw10: 0x%x\n", req->cmd.cdw10);
+            printf("req cdw11: 0x%x\n", req->cmd.cdw11);
+            printf("req cdw12: 0x%x\n", req->cmd.cdw12);
+            printf("req cdw13: 0x%x\n", req->cmd.cdw13);
+            printf("req cdw14: 0x%x\n", req->cmd.cdw14);
+            printf("req cdw15: 0x%x\n", req->cmd.cdw15);    
+            printf("req->cmd_opcode: 0x%x\n",req->cmd_opcode);    
         
+
+            while(zone->d.za != 0 )
+            {
+                zone++;
+                zone_log++;
+            }
+            printf("[zone %d's za is 0\n", zone_log);
+        }
     }
-*/
+
     err = femu_nvme_rw_check_req(n, ns, cmd, req, slba, elba, nlb, ctrl,
                                  data_size, meta_size);
     if (err)

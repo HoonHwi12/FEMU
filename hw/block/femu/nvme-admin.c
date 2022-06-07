@@ -952,6 +952,7 @@ static uint16_t nvme_format(FemuCtrl *n, NvmeCmd *cmd)
 
 //* by HH: change flash type / print zones / config control /////////////////////////////////////////////
 #include "zns/zns.h"
+extern bool H_TEST_LOG;
 static uint16_t nvme_change_flash_type(FemuCtrl *n, NvmeCmd *cmd)
 {
 
@@ -1014,12 +1015,17 @@ static uint16_t nvme_print_flash_type(FemuCtrl *n, NvmeCmd *cmd)
     NvmeZone *zone;
     zone = n->zone_array;
 
+    uint32_t print_range = n->num_zones;
+
+    if(cmd->cdw10 != 0x899) print_range = cmd->cdw10;
+    if(print_range > n->num_zones) print_range = n->num_zones;
+
     printf("\n");
     printf("zone_max_open: %d, zone_max_active: %d, zone_nr_open: %d, zone_nr_active: %d\n",
         n->max_open_zones, n->max_active_zones, n->nr_open_zones, n->nr_active_zones);
     printf("%15sslba %3scapacity %4swptr %6sstate %6stype %2sfalsh\n",
     "","","","","","");
-    for(int i=0; i<n->num_zones; i++, zone++)
+    for(int i=0; i < print_range; i++, zone++)
     {
         printf("   [zone#%2d] 0x%06lx | 0x%05lx | 0x%06lx | %12s | %6s | %s\n",
         i, zone->d.zslba, zone->d.zcap, zone->d.wp,
@@ -1140,6 +1146,34 @@ static uint16_t nvme_zconfig_control(FemuCtrl *n, NvmeCmd *cmd)
 
     return NVME_SUCCESS;
 }
+
+static uint16_t nvme_debug_mode(FemuCtrl *n, NvmeCmd *cmd)
+{
+    // if(cmd->cdw10 != 0x899)
+    // {
+    //     if(cmd->cdw10 >= 0x1)
+    //     {
+    //         #define H_DEBUG_LOG
+    //     }
+    //     else
+    //     {
+    //         #undef H_DEBUG_LOG
+    //     }
+    // }
+    if(cmd->cdw11 != 0x899)
+    {
+        if(cmd->cdw11 >= 0x1)
+        {
+            H_TEST_LOG = true;
+        }
+        else
+        {
+            H_TEST_LOG = false;
+        }
+    }
+
+    return NVME_SUCCESS;
+}
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 
@@ -1200,13 +1234,15 @@ static uint16_t nvme_admin_cmd(FemuCtrl *n, NvmeCmd *cmd, NvmeCqe *cqe)
     case NVME_ADM_CMD_SECURITY_SEND:
     case NVME_ADM_CMD_SECURITY_RECV:
         return NVME_INVALID_OPCODE | NVME_DNR;
-    //by HH
+    //* by HH
     case NVME_ADM_CMD_CHANGE_FLTYPE:
         return nvme_change_flash_type(n, cmd);
     case NVME_ADM_CMD_CONIFG_CTL:
         return nvme_zconfig_control(n, cmd);        
     case NVME_ADM_CMD_PRINT_FLTYPE:
         return nvme_print_flash_type(n, cmd);
+    case NVME_ADM_CMD_SET_DEBUG:
+        return nvme_debug_mode(n, cmd);
     default:
         if (n->ext_ops.admin_cmd) {
             return n->ext_ops.admin_cmd(n, cmd);
