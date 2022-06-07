@@ -676,6 +676,7 @@ uint16_t nvme_rw(FemuCtrl *n, NvmeNamespace *ns, NvmeCmd *cmd, NvmeRequest *req)
 
     NvmeZone *zone;
 
+/*
     if(H_TEST_LOG)
     {
         if(req->is_write)
@@ -712,6 +713,7 @@ uint16_t nvme_rw(FemuCtrl *n, NvmeNamespace *ns, NvmeCmd *cmd, NvmeRequest *req)
             printf("[zone %d's za is 0\n", zone_log);
         }
     }
+*/
 
     err = femu_nvme_rw_check_req(n, ns, cmd, req, slba, elba, nlb, ctrl,
                                  data_size, meta_size);
