@@ -3,6 +3,13 @@
 
 //#define FEMU_DEBUG_FTL
 
+void ssd_init_lines(struct ssd *ssd);
+void ssd_init_write_pointer(struct ssd *ssd);
+void ssd_init_params(FemuCtrl *n, struct ssdparams *spp);
+void ssd_init_ch(struct ssd_channel *ch, struct ssdparams *spp);
+void ssd_init_maptbl(struct ssd *ssd);
+void ssd_init_rmap(struct ssd *ssd);
+
 static void *ftl_thread(void *arg);
 
 static inline bool should_gc(struct ssd *ssd)
@@ -82,7 +89,8 @@ static inline void victim_line_set_pos(void *a, size_t pos)
     ((struct line *)a)->pos = pos;
 }
 
-static void ssd_init_lines(struct ssd *ssd)
+//static void ssd_init_lines(struct ssd *ssd)
+void ssd_init_lines(struct ssd *ssd)
 {
     struct ssdparams *spp = &ssd->sp;
     struct line_mgmt *lm = &ssd->lm;
@@ -115,7 +123,8 @@ static void ssd_init_lines(struct ssd *ssd)
     lm->full_line_cnt = 0;
 }
 
-static void ssd_init_write_pointer(struct ssd *ssd)
+//static void ssd_init_write_pointer(struct ssd *ssd)
+void ssd_init_write_pointer(struct ssd *ssd)
 {
     struct write_pointer *wpp = &ssd->wp;
     struct line_mgmt *lm = &ssd->lm;
@@ -235,7 +244,8 @@ static void check_params(struct ssdparams *spp)
     //ftl_assert(is_power_of_2(spp->nchs));
 }
 
-static void ssd_init_params(FemuCtrl *n, struct ssdparams *spp)
+//static void ssd_init_params(FemuCtrl *n, struct ssdparams *spp)
+void ssd_init_params(FemuCtrl *n, struct ssdparams *spp)
 {
     spp->secsz = 512;
     // spp->secs_per_pg = 8;
@@ -357,7 +367,8 @@ static void ssd_init_nand_lun(struct nand_lun *lun, struct ssdparams *spp)
     lun->busy = false;
 }
 
-static void ssd_init_ch(struct ssd_channel *ch, struct ssdparams *spp)
+//static void ssd_init_ch(struct ssd_channel *ch, struct ssdparams *spp)
+void ssd_init_ch(struct ssd_channel *ch, struct ssdparams *spp)
 {
     ch->nluns = spp->luns_per_ch;
     ch->lun = g_malloc0(sizeof(struct nand_lun) * ch->nluns);
@@ -368,7 +379,8 @@ static void ssd_init_ch(struct ssd_channel *ch, struct ssdparams *spp)
     ch->busy = 0;
 }
 
-static void ssd_init_maptbl(struct ssd *ssd)
+//static void ssd_init_maptbl(struct ssd *ssd)
+void ssd_init_maptbl(struct ssd *ssd)
 {
     struct ssdparams *spp = &ssd->sp;
 
@@ -378,7 +390,8 @@ static void ssd_init_maptbl(struct ssd *ssd)
     }
 }
 
-static void ssd_init_rmap(struct ssd *ssd)
+//static void ssd_init_rmap(struct ssd *ssd)
+void ssd_init_rmap(struct ssd *ssd)
 {
     struct ssdparams *spp = &ssd->sp;
 

@@ -952,6 +952,7 @@ static uint16_t nvme_format(FemuCtrl *n, NvmeCmd *cmd)
 
 //* by HH: change flash type / print zones / config control /////////////////////////////////////////////
 #include "zns/zns.h"
+#include "bbssd/ftl.h"
 extern bool H_TEST_LOG;
 static uint16_t nvme_change_flash_type(FemuCtrl *n, NvmeCmd *cmd)
 {
@@ -1010,6 +1011,13 @@ static uint16_t nvme_change_flash_type(FemuCtrl *n, NvmeCmd *cmd)
 }
 
 
+extern void ssd_init_lines(struct ssd *ssd);
+extern void ssd_init_write_pointer(struct ssd *ssd);
+extern void ssd_init_params(FemuCtrl *n, struct ssdparams *spp);
+extern void ssd_init_ch(struct ssd_channel *ch, struct ssdparams *spp);
+extern void ssd_init_maptbl(struct ssd *ssd);
+extern void ssd_init_rmap(struct ssd *ssd);
+
 static uint16_t nvme_print_flash_type(FemuCtrl *n, NvmeCmd *cmd)
 {
     NvmeZone *zone;
@@ -1056,6 +1064,33 @@ static uint16_t nvme_zconfig_control(FemuCtrl *n, NvmeCmd *cmd)
     }
     //printf("cdw10: %d, cdw11: %d",cmd->cdw10,cmd->cdw11);
 
+    //* by HH: ssd init
+    struct ssd *ssd = n->ssd;
+    struct ssdparams *spp = &ssd->sp;
+
+    ftl_assert(ssd);
+
+    ssd_init_params(n, spp);
+
+    /* initialize ssd internal layout architecture */
+    ssd->ch = g_malloc0(sizeof(struct ssd_channel) * spp->nchs);
+    for (int i = 0; i < spp->nchs; i++) {
+        ssd_init_ch(&ssd->ch[i], spp);
+    }
+
+    /* initialize maptbl */
+    ssd_init_maptbl(ssd);
+
+    /* initialize rmap */
+    ssd_init_rmap(ssd);
+
+    /* initialize all the lines */
+    ssd_init_lines(ssd);
+
+    /* initialize write pointer, this is how we allocate new pages for writes */
+    ssd_init_write_pointer(ssd);
+    //* ssd init
+
     NvmeNamespace *ns = &n->namespaces[0];
 
     // by HH: re-initialize zone
@@ -1069,10 +1104,11 @@ static uint16_t nvme_zconfig_control(FemuCtrl *n, NvmeCmd *cmd)
         NvmeZone *zone;
         int i;
 
-        //n->zone_array = g_new0(NvmeZone, n->num_zones);
-        // if (n->zd_extension_size) {
-        //     n->zd_extensions = g_malloc0(n->zd_extension_size * n->num_zones);
-        // }
+        //* by HH: added 2
+        n->zone_array = g_new0(NvmeZone, n->num_zones);
+        if (n->zd_extension_size) {
+            n->zd_extensions = g_malloc0(n->zd_extension_size * n->num_zones);
+        }
 
         QTAILQ_INIT(&n->exp_open_zones);
         QTAILQ_INIT(&n->imp_open_zones);

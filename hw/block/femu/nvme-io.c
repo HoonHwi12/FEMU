@@ -377,26 +377,6 @@ static void nvme_process_sq_io(void *opaque, int index_poller)
         if (sq->phys_contig) {
             addr = sq->dma_addr + sq->head * n->sqe_size;
             nvme_copy_cmd(&cmd, (void *)&(((NvmeCmd *)sq->dma_addr_hva)[sq->head]));
-
-            #ifdef HLOG
-            NvmeRwCmd *rw = (NvmeRwCmd *)&cmd;
-            h_log("nvme_process_sq_io opcode: %d, slba: 0x%lx, nlb: 0x%x\n", rw->opcode, rw->slba, rw->nlb);
-            h_log("opcode: %d\n", rw->opcode);
-            h_log("flags: %d\n", rw->flags);
-            h_log("cid: %d\n", rw->cid);
-            h_log("nsid: %d\n", rw->nsid);
-            h_log("rsvd2: %ld\n", rw->rsvd2);
-            h_log("mptr: %ld\n", rw->mptr);
-            h_log("prp1: %ld\n", rw->prp1);
-            h_log("prp2: %ld\n", rw->prp2);
-            h_log("slba: %ld\n", rw->slba);
-            h_log("nlb: %d\n", rw->nlb);
-            h_log("control: %d\n", rw->control);
-            h_log("dsmgmt: %d\n", rw->dsmgmt);
-            h_log("reftag: %d\n", rw->reftag);
-            h_log("apptag: %d\n", rw->apptag);
-            h_log("appmask: %d\n", rw->appmask);
-            #endif
         } else {
             addr = nvme_discontig(sq->prp_list, sq->head, n->page_size,
                                   n->sqe_size);
@@ -675,7 +655,6 @@ uint16_t nvme_rw(FemuCtrl *n, NvmeNamespace *ns, NvmeCmd *cmd, NvmeRequest *req)
     req->is_write = (rw->opcode == NVME_CMD_WRITE) ? 1 : 0;
 
     NvmeZone *zone;
-
 /*
     if(H_TEST_LOG)
     {
@@ -714,7 +693,6 @@ uint16_t nvme_rw(FemuCtrl *n, NvmeNamespace *ns, NvmeCmd *cmd, NvmeRequest *req)
         }
     }
 */
-
     err = femu_nvme_rw_check_req(n, ns, cmd, req, slba, elba, nlb, ctrl,
                                  data_size, meta_size);
     if (err)
