@@ -66,6 +66,7 @@ extern uint64_t        slc_wp;
 typedef struct slc_mapping {
     uint64_t zdslba;
     uint32_t zdnlb;
+    uint64_t target_addr;
 } slc_mapping;
 
 typedef struct slctbl {
@@ -88,12 +89,12 @@ typedef struct slc_region {
 //     return rslc.mapslc[slc_index];
 // }
 
-inline void set_mapslc_ent(uint16_t zone_index, uint64_t zdslba, uint32_t zdnlb)
+inline void set_mapslc_ent(uint16_t zone_index, uint64_t zdslba, uint32_t zdnlb, uint64_t target_addr)
 {
     slctbl *tbl = rslc.mapslc;
     // {zone_index, zslba, znlb}
-    h_log("zone index: %d, zdslba: 0x%lx, zdnlb: 0x%x, num_data: %ld\n",
-        zone_index, zdslba, zdnlb, tbl->num_slc_data);
+h_log("zone index: %d, zdslba: 0x%lx, zdnlb: 0x%x, num_data: %ld, target_addr: 0x%lx\n",
+        zone_index, zdslba, zdnlb, tbl->num_slc_data, target_addr);
 
     tbl += zone_index;
     slc_mapping *map_tbl = tbl->slcmap;
@@ -101,10 +102,11 @@ inline void set_mapslc_ent(uint16_t zone_index, uint64_t zdslba, uint32_t zdnlb)
     map_tbl += tbl->num_slc_data;
     map_tbl->zdslba = zdslba;
     map_tbl->zdnlb = zdnlb;  
+    map_tbl->target_addr = target_addr;
 
     tbl->num_slc_data++;
-    h_log("tbl: %d, tbl_index: %ld, tlbslba: 0x%lx, tblnlb: 0x%x",
-        zone_index, tbl->num_slc_data, map_tbl->zdslba, map_tbl->zdnlb);
+    h_log("tbl: %d, tbl_index: %ld, tlbslba: 0x%lx, tblnlb: 0x%x, target: 0x%lx",
+        zone_index, tbl->num_slc_data, map_tbl->zdslba, map_tbl->zdnlb, map_tbl->target);
 }
 
 typedef struct QEMU_PACKED NvmeZoneDescr {

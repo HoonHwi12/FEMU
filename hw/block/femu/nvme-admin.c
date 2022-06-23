@@ -1068,17 +1068,14 @@ static uint16_t nvme_zconfig_control(FemuCtrl *n, NvmeCmd *cmd)
     struct ssd *ssd = n->ssd;
     struct ssdparams *spp = &ssd->sp;
 
+h_log("free memory\n");
     //* free previous memory
     free(ssd->ch);
-    free(ssd->rmap);
-    free(ssd->maptbl);
-    free(&ssd->lm);
-    free(n->zone_array);
-    free(n->zd_extensions);
     //*
-
+h_log("free complete\n");
     ftl_assert(ssd);
 
+h_log("ssd_init_params\n");
     ssd_init_params(n, spp);
 
     /* initialize ssd internal layout architecture */
@@ -1087,14 +1084,22 @@ static uint16_t nvme_zconfig_control(FemuCtrl *n, NvmeCmd *cmd)
         ssd_init_ch(&ssd->ch[i], spp);
     }
 
+
     /* initialize maptbl */
-    ssd_init_maptbl(ssd);
+    for (int i = 0; i < spp->tt_pgs; i++) {
+        ssd->maptbl[i].ppa = UNMAPPED_PPA;
+    }
 
-    /* initialize rmap */
-    ssd_init_rmap(ssd);
+    // /* initialize rmap */
+    for (int i = 0; i < spp->tt_pgs; i++) {
+        ssd->rmap[i] = INVALID_LPN;
+    }
 
-    /* initialize all the lines */
-    ssd_init_lines(ssd);
+    // /* initialize all the lines */
+    struct line_mgmt *lm = &ssd->lm;
+
+    lm->victim_line_cnt = 0;
+    lm->full_line_cnt = 0;
 
     /* initialize write pointer, this is how we allocate new pages for writes */
     ssd_init_write_pointer(ssd);
@@ -1106,6 +1111,7 @@ static uint16_t nvme_zconfig_control(FemuCtrl *n, NvmeCmd *cmd)
         tbl++;
     }
     slc_wp = 0;    
+    h_log("ssd_init complete\n");
     //* ssd init **************************************************
 
     NvmeNamespace *ns = &n->namespaces[0];
@@ -1122,10 +1128,10 @@ static uint16_t nvme_zconfig_control(FemuCtrl *n, NvmeCmd *cmd)
         int i;
 
         //* by HH: added 2
-        n->zone_array = g_new0(NvmeZone, n->num_zones);
-        if (n->zd_extension_size) {
-            n->zd_extensions = g_malloc0(n->zd_extension_size * n->num_zones);
-        }
+        // memset(n->zone_array, 0, sizeof(NvmeZone)*n->num_zones);
+        // if (n->zd_extension_size) {
+        //     memset(n->zd_extensions, 0, n->zd_extension_size * n->num_zones);
+        // }
 
         QTAILQ_INIT(&n->exp_open_zones);
         QTAILQ_INIT(&n->imp_open_zones);

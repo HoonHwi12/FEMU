@@ -399,6 +399,7 @@ static void nvme_process_sq_io(void *opaque, int index_poller)
             {
                 NvmeZone *zone = n->zone_array;
                 uint16_t zone_index=0;
+                uint64_t req_slba = 0;
                 
                 // move to end of the SLC region
                 while (zone->d.zone_flash_type != SLC ||
@@ -472,7 +473,7 @@ static void nvme_process_sq_io(void *opaque, int index_poller)
                 }
                 else
                 {
-                   
+                   req_slba = req->slba;
                     h_log("SLC wp: 0x%lx, req nlb: 0x%x, cmd nlb: 0x%x, req.slba: 0x%lx\n",
                         slc_wp, req->cmd.cdw12, cmd.cdw12, req->slba);
 
@@ -487,7 +488,7 @@ static void nvme_process_sq_io(void *opaque, int index_poller)
                 req->cmd.cdw12 = cmd.cdw12;
 
                 h_log("nvme-io.c: set mapslc\n");
-                set_mapslc_ent( ((cmd.cdw10+1)/n->zone_capacity), req->slba, cmd.cdw12);
+                set_mapslc_ent( ((cmd.cdw10+1)/n->zone_capacity), req->slba, cmd.cdw12, req_slba);
             }
         }
 
@@ -785,6 +786,7 @@ uint16_t nvme_rw(FemuCtrl *n, NvmeNamespace *ns, NvmeCmd *cmd, NvmeRequest *req)
 
     // by HH: ZNS IO check /////////////////////////////////////////////////
     zone = zns_get_zone_by_slba(ns, slba);
+    h_log("check write slba 0x%lx\n", slba);
 
     //if (nvme_check_mdts(n, data_size)) {
     if(n->mdts && data_size > n->page_size<<n->mdts) {
