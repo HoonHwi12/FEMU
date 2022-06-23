@@ -97,6 +97,7 @@ static void zns_init_zoned_state(NvmeNamespace *ns)
     QTAILQ_INIT(&n->full_zones);
 
     zone = n->zone_array;
+
     for (i = 0; i < n->num_zones; i++, zone++) {
         if (start + zone_size > capacity) {
             zone_size = capacity - start;
@@ -109,7 +110,14 @@ static void zns_init_zoned_state(NvmeNamespace *ns)
         zone->d.wp = start;
 
         // by HH ---------------------------------------------------
-        zone->d.zone_flash_type = n->flash_type;
+        if(i<2)
+        {
+            zone->d.zone_flash_type = SLC;
+        }
+        else
+        {
+            zone->d.zone_flash_type = n->flash_type;
+        }
         // ----------------------------------------------------------
 
         zone->w_ptr = start;
@@ -139,7 +147,19 @@ static int zns_init_zone_cap(FemuCtrl *n)
 static void zns_init_zone_identify(FemuCtrl *n, NvmeNamespace *ns, int lba_index)
 {
     NvmeIdNsZoned *id_ns_z;
-
+h_log("zns init tbl\n");
+    rslc.mapslc = g_new0(slctbl, n->num_zones);
+    h_log("here2\n");
+    slctbl *tbl = rslc.mapslc;
+    
+    
+    for(int temp=0; temp < n->num_zones; temp++)
+    {
+        tbl->slcmap = g_new0(slc_mapping, n->zone_capacity);
+        tbl++;
+    }
+    slc_wp = 0;
+h_log("zns init tbl end\n");
     zns_init_zoned_state(ns);
 
     id_ns_z = g_malloc0(sizeof(NvmeIdNsZoned));

@@ -1134,7 +1134,6 @@ static uint16_t nvme_create_sq(NvmeCtrl *n, NvmeRequest *req)
 {
     NvmeSQueue *sq;
     NvmeCreateSq *c = (NvmeCreateSq *)&req->cmd;
-
     uint16_t cqid = le16_to_cpu(c->cqid);
     uint16_t sqid = le16_to_cpu(c->sqid);
     uint16_t qsize = le16_to_cpu(c->qsize);
@@ -1165,6 +1164,7 @@ static uint16_t nvme_create_sq(NvmeCtrl *n, NvmeRequest *req)
         return NVME_INVALID_FIELD | NVME_DNR;
     }
     sq = g_malloc0(sizeof(*sq));
+
     nvme_init_sq(sq, n, prp1, sqid, cqid, qsize + 1);
     return NVME_SUCCESS;
 }

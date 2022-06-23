@@ -953,7 +953,7 @@ static uint16_t nvme_format(FemuCtrl *n, NvmeCmd *cmd)
 //* by HH: change flash type / print zones / config control /////////////////////////////////////////////
 #include "zns/zns.h"
 #include "bbssd/ftl.h"
-extern bool H_TEST_LOG;
+//extern bool H_TEST_LOG;
 static uint16_t nvme_change_flash_type(FemuCtrl *n, NvmeCmd *cmd)
 {
 
@@ -1064,9 +1064,18 @@ static uint16_t nvme_zconfig_control(FemuCtrl *n, NvmeCmd *cmd)
     }
     //printf("cdw10: %d, cdw11: %d",cmd->cdw10,cmd->cdw11);
 
-    //* by HH: ssd init
+    //* by HH: ssd init ******************************************
     struct ssd *ssd = n->ssd;
     struct ssdparams *spp = &ssd->sp;
+
+    //* free previous memory
+    free(ssd->ch);
+    free(ssd->rmap);
+    free(ssd->maptbl);
+    free(&ssd->lm);
+    free(n->zone_array);
+    free(n->zd_extensions);
+    //*
 
     ftl_assert(ssd);
 
@@ -1089,7 +1098,15 @@ static uint16_t nvme_zconfig_control(FemuCtrl *n, NvmeCmd *cmd)
 
     /* initialize write pointer, this is how we allocate new pages for writes */
     ssd_init_write_pointer(ssd);
-    //* ssd init
+
+    slctbl *tbl = rslc.mapslc;
+    for(int temp=0; temp<n->num_zones; temp++)
+    {
+        tbl->num_slc_data = 0;
+        tbl++;
+    }
+    slc_wp = 0;    
+    //* ssd init **************************************************
 
     NvmeNamespace *ns = &n->namespaces[0];
 
@@ -1118,6 +1135,7 @@ static uint16_t nvme_zconfig_control(FemuCtrl *n, NvmeCmd *cmd)
         n->nr_active_zones = 0;
         n->nr_open_zones = 0;
         zone = n->zone_array;
+
         for (i = 0; i < n->num_zones; i++, zone++)
         {
             if (start + zone_size > capacity)
@@ -1131,7 +1149,7 @@ static uint16_t nvme_zconfig_control(FemuCtrl *n, NvmeCmd *cmd)
             zone->d.zslba = start;
             zone->d.wp = start;
             
-            zone->d.zone_flash_type = n->flash_type;
+            //zone->d.zone_flash_type = n->flash_type;
             zone->w_ptr = start;
             start += zone_size;
         }

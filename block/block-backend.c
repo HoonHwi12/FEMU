@@ -28,6 +28,7 @@
 #include "trace.h"
 #include "migration/misc.h"
 
+
 /* Number of coroutines to reserve per attached device model */
 #define COROUTINE_POOL_RESERVATION 64
 
@@ -1471,7 +1472,6 @@ static void blk_aio_write_entry(void *opaque)
     BlkAioEmAIOCB *acb = opaque;
     BlkRwCo *rwco = &acb->rwco;
     QEMUIOVector *qiov = rwco->iobuf;
-
     assert(!qiov || qiov->size == acb->bytes);
     rwco->ret = blk_do_pwritev_part(rwco->blk, rwco->offset, acb->bytes,
                                     qiov, 0, rwco->flags);

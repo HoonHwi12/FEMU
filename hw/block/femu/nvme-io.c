@@ -5,8 +5,6 @@ static uint16_t nvme_io_cmd(FemuCtrl *n, NvmeCmd *cmd, NvmeRequest *req);
 //by HH: ZNS function ////////////////////////////////////////////////////
 #include "zns/zns.h"
 
-extern bool H_TEST_LOG;
-
 static inline uint32_t zns_zone_idx(NvmeNamespace *ns, uint64_t slba)
 {
     FemuCtrl *n = ns->ctrl;
@@ -219,7 +217,7 @@ static uint16_t zns_check_zone_write(FemuCtrl *n, NvmeNamespace *ns,
         else if (unlikely(slba != zone->w_ptr))
         {
             h_log(" *********ZONE INVALID WRITE Error*********\n");
-            h_log("slba: %ld / wptr: %ld\n", slba, zone->w_ptr);
+            h_log("slba: 0x%lx / wptr: 0x%lx\n", slba, zone->w_ptr);
             status = NVME_ZONE_INVALID_WRITE;
         }
     }
@@ -393,14 +391,119 @@ static void nvme_process_sq_io(void *opaque, int index_poller)
         req->cmd_opcode = cmd.opcode;
         memcpy(&req->cmd, &cmd, sizeof(NvmeCmd));
 
+
+        //* by HH
+        if(H_TEST_LOG)
+        {
+            if(cmd.opcode == NVME_CMD_WRITE)
+            {
+                NvmeZone *zone = n->zone_array;
+                uint16_t zone_index=0;
+                
+                // move to end of the SLC region
+                while (zone->d.zone_flash_type != SLC ||
+                        zone->d.zs>>4 == 0xD ||
+                        zone->d.zs>>4 == 0xE ||
+                        zone->d.zs>>4 == 0xF )
+                {
+                    h_log("zone %d type %d\n", zone_index, zone->d.zone_flash_type);
+                    zone_index++;
+                    if(zone_index >= n->num_zones)
+                    {
+                        h_log("no SLC zone found\n");
+                        break;
+                    }
+                    zone++;
+                }
+                if(zone_index>0) h_log("last SLC zone: %d, type %d, ZS: 0x%x\n", zone_index, zone->d.zone_flash_type, zone->d.zs);
+
+                if( (slc_wp + cmd.cdw12) > (zone->d.zslba + zone->d.zcap) )
+                {
+                    //* need TLC migration
+                    h_log("SLC region is full!, to TLC\n");
+                    zone++;
+                    zone_index++;
+                    while(zone->d.zs == NVME_ZONE_STATE_EMPTY)
+                    {
+                        zone++;
+                        zone_index++;
+                        if(zone_index >= n->num_zones)
+                        {
+                            femu_err("no empty TLC found\n");
+                        }
+                    }
+                    
+                    cmd.cdw10 = zone->d.zslba;
+                    h_log("TLC wp: 0x%x, nlb: 0x%x\n", cmd.cdw10, cmd.cdw12);
+            
+                    //uint16_t slc_index=0;
+                    // zone -= zone_index;
+                    // zone_index = 0;
+                    // h_log("need migration, pointer back to SLC 0, zslba: 0x%lx\n", zone->d.zslba);
+
+                    // cmd.cdw10 = zone->d.zslba;
+
+                    // slc_wp = zone->d.zslba + req->nlb;
+
+                    // //NvmeCmd gc_cmd;
+                    // NvmeRequest *gc_req;
+                    // memcpy(&gc_req, &req, sizeof(NvmeRequest));
+
+                    // //* TLC Migration
+                    // while(slc_index <= rslc.num_slc_data)
+                    // {
+                    //     if(rslc.mapslc[slc_index].g.zdslba <= (zone->d.zslba + req->nlb))
+                    //     {
+                    //         //* gc
+                    //         ppa = get_ma-ptbl_ent(ssd, lpn);                            
+                    //         mark_page_invalid(ssd, &ppa);
+                    //         set_rmap_ent(ssd, INVALID_LPN, &ppa);
+
+                    //         //* make invalid
+
+                    //         //* FTL write
+                    //         if (femu_ring_enqueue(n->to_ftl[index_poller], (void *)&gc_req, 1) != 1)
+                    //         {
+                    //             femu_err("Tlc migration enqueue failed\n", );
+                    //         }                            
+                    //     }
+                    //     slc_index++;
+                    //}
+                }
+                else
+                {
+                   
+                    h_log("SLC wp: 0x%lx, req nlb: 0x%x, cmd nlb: 0x%x, req.slba: 0x%lx\n",
+                        slc_wp, req->cmd.cdw12, cmd.cdw12, req->slba);
+
+                    cmd.cdw10 = slc_wp;
+
+                    slc_wp += cmd.cdw12+1;
+                }
+
+                req->slba = cmd.cdw10;
+                req->nlb = cmd.cdw12;
+                req->cmd.cdw10 = cmd.cdw10;
+                req->cmd.cdw12 = cmd.cdw12;
+
+                h_log("nvme-io.c: set mapslc\n");
+                set_mapslc_ent( ((cmd.cdw10+1)/n->zone_capacity), req->slba, cmd.cdw12);
+            }
+        }
+
+
         if (n->print_log) {
             femu_debug("%s,cid:%d\n", __func__, cmd.cid);
         }
 
+        if(cmd.opcode == NVME_CMD_WRITE && H_TEST_LOG)
+        {
+            h_log("nvme-io.c: nvme_io_cmd, slba: 0x%lx\n", req->slba);
+        }
         status = nvme_io_cmd(n, &cmd, req);
         if (1 && status == NVME_SUCCESS) {
             req->status = status;
-
+            if(cmd.opcode == NVME_CMD_WRITE && H_TEST_LOG) h_log("nvme-io.c: femu_ring_enqueue\n");
             int rc = femu_ring_enqueue(n->to_ftl[index_poller], (void *)&req, 1);
             if (rc != 1) {
                 femu_err("enqueue failed, ret=%d\n", rc);
@@ -536,6 +639,7 @@ static void *nvme_poller(void *arg)
         }
         break;
     default:
+        printf("num io queues: %d\n", n->num_io_queues);
         while (1) {
             if ((!n->dataplane_started)) {
                 usleep(1000);
@@ -655,44 +759,7 @@ uint16_t nvme_rw(FemuCtrl *n, NvmeNamespace *ns, NvmeCmd *cmd, NvmeRequest *req)
     req->is_write = (rw->opcode == NVME_CMD_WRITE) ? 1 : 0;
 
     NvmeZone *zone;
-/*
-    if(H_TEST_LOG)
-    {
-        if(req->is_write)
-        {        
-            zone = n->zone_array;
-            int zone_log=0;
 
-            printf("\n\n");
-            printf("opcode: 0x%x\n", cmd->opcode);
-            printf("nsid: 0x%x\n", cmd->nsid);
-            printf("cdw10: 0x%x\n", cmd->cdw10);
-            printf("cdw11: 0x%x\n", cmd->cdw11);
-            printf("cdw12: 0x%x\n", cmd->cdw12);
-            printf("cdw13: 0x%x\n", cmd->cdw13);
-            printf("cdw14: 0x%x\n", cmd->cdw14);
-            printf("cdw15: 0x%x\n", cmd->cdw15);
-
-            printf("req opcode: 0x%x\n",req->cmd.opcode);
-            printf("req nsid: 0x%x\n", req->cmd.nsid);
-            printf("req cdw10: 0x%x\n", req->cmd.cdw10);
-            printf("req cdw11: 0x%x\n", req->cmd.cdw11);
-            printf("req cdw12: 0x%x\n", req->cmd.cdw12);
-            printf("req cdw13: 0x%x\n", req->cmd.cdw13);
-            printf("req cdw14: 0x%x\n", req->cmd.cdw14);
-            printf("req cdw15: 0x%x\n", req->cmd.cdw15);    
-            printf("req->cmd_opcode: 0x%x\n",req->cmd_opcode);    
-        
-
-            while(zone->d.za != 0 )
-            {
-                zone++;
-                zone_log++;
-            }
-            printf("[zone %d's za is 0\n", zone_log);
-        }
-    }
-*/
     err = femu_nvme_rw_check_req(n, ns, cmd, req, slba, elba, nlb, ctrl,
                                  data_size, meta_size);
     if (err)
@@ -735,12 +802,13 @@ uint16_t nvme_rw(FemuCtrl *n, NvmeNamespace *ns, NvmeCmd *cmd, NvmeRequest *req)
     if(req->is_write)
     {
         if (zns_check_zone_write(n, ns, zone, slba, nlb, false)) {
-            femu_err("hoonhwi:*********ZONE check Error*********\n");
+            femu_err("*********ZONE check Error*********\n");
+            femu_err("slba: 0x%lx, nlb: 0x%x\n", slba, nlb);
             return NVME_INVALID_FIELD;
         }
 
         if (zns_auto_open_zone(ns, zone)) {
-            femu_err("hoonhwi:*********ZONE Open Error*********\n");
+            femu_err("*********ZONE Open Error*********\n");
             return NVME_INVALID_FIELD;
         }
 
@@ -766,7 +834,11 @@ uint16_t nvme_rw(FemuCtrl *n, NvmeNamespace *ns, NvmeCmd *cmd, NvmeRequest *req)
     }
     ///////////////////////////////////////////////////////////////////////////
 
-    h_log("nvme io\n");
+    if(H_TEST_LOG)
+    {
+        h_log("nvme io\n");
+        h_log("backend rw: 0x%lx\n", req->slba);
+    }
     ret = backend_rw(n->mbe, &req->qsg, &data_offset, req->is_write);
     if (ret) {
         femu_err("backend rw error\n");

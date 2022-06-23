@@ -17,6 +17,9 @@
 
 typedef struct ScatterGatherEntry ScatterGatherEntry;
 
+
+extern bool H_TEST_LOG;
+
 typedef enum {
     DMA_DIRECTION_TO_DEVICE = 0,
     DMA_DIRECTION_FROM_DEVICE = 1,
@@ -101,12 +104,12 @@ static inline int dma_memory_write_relaxed(AddressSpace *as, dma_addr_t addr,
                                  DMA_DIRECTION_FROM_DEVICE);
 }
 
+
 static inline int dma_memory_rw(AddressSpace *as, dma_addr_t addr,
                                 void *buf, dma_addr_t len,
                                 DMADirection dir)
 {
     dma_barrier(as, dir);
-
     return dma_memory_rw_relaxed(as, addr, buf, len, dir);
 }
 

@@ -59,6 +59,54 @@ enum NvmeZoneSendAction {
     NVME_ZONE_ACTION_SET_ZD_EXT      = 0x10,
 };
 
+//* by HH
+extern struct slc_region rslc;
+extern uint64_t        slc_wp;
+
+typedef struct slc_mapping {
+    uint64_t zdslba;
+    uint32_t zdnlb;
+} slc_mapping;
+
+typedef struct slctbl {
+        // struct {    
+        //     //uint16_t zdnum;
+        //     uint64_t zdslba;
+        //     uint16_t zdnlb;
+        // } g;
+        slc_mapping *slcmap;
+        u_int64_t num_slc_data;
+        //uint64_t slctbl;   
+} slctbl;
+
+typedef struct slc_region {
+    slctbl *mapslc; /* slc mapping table */
+}slc_region;
+
+// inline struct slctbl get_mapslc_ent(u_int64_t slc_index)
+// {
+//     return rslc.mapslc[slc_index];
+// }
+
+inline void set_mapslc_ent(uint16_t zone_index, uint64_t zdslba, uint32_t zdnlb)
+{
+    slctbl *tbl = rslc.mapslc;
+    // {zone_index, zslba, znlb}
+    h_log("zone index: %d, zdslba: 0x%lx, zdnlb: 0x%x, num_data: %ld\n",
+        zone_index, zdslba, zdnlb, tbl->num_slc_data);
+
+    tbl += zone_index;
+    slc_mapping *map_tbl = tbl->slcmap;
+    h_log("num slc data: %ld\n", tbl->num_slc_data);
+    map_tbl += tbl->num_slc_data;
+    map_tbl->zdslba = zdslba;
+    map_tbl->zdnlb = zdnlb;  
+
+    tbl->num_slc_data++;
+    h_log("tbl: %d, tbl_index: %ld, tlbslba: 0x%lx, tblnlb: 0x%x",
+        zone_index, tbl->num_slc_data, map_tbl->zdslba, map_tbl->zdnlb);
+}
+
 typedef struct QEMU_PACKED NvmeZoneDescr {
     uint8_t     zt;
     uint8_t     zs;

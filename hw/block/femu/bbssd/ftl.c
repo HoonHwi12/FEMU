@@ -14,12 +14,16 @@ static void *ftl_thread(void *arg);
 
 static inline bool should_gc(struct ssd *ssd)
 {
-    return (ssd->lm.free_line_cnt <= ssd->sp.gc_thres_lines);
+    //* by HH
+    return false;
+    //return (ssd->lm.free_line_cnt <= ssd->sp.gc_thres_lines);
 }
 
 static inline bool should_gc_high(struct ssd *ssd)
 {
-    return (ssd->lm.free_line_cnt <= ssd->sp.gc_thres_lines_high);
+    //* by HH
+    return false;    
+    //return (ssd->lm.free_line_cnt <= ssd->sp.gc_thres_lines_high);
 }
 
 static inline struct ppa get_maptbl_ent(struct ssd *ssd, uint64_t lpn)
@@ -171,6 +175,7 @@ static void ssd_advance_write_pointer(struct ssd *ssd)
     struct line_mgmt *lm = &ssd->lm;
 
     check_addr(wpp->ch, spp->nchs);
+
     wpp->ch++;
     if (wpp->ch == spp->nchs) {
         wpp->ch = 0;
@@ -408,7 +413,7 @@ void ssd_init(FemuCtrl *n)
 
     ftl_assert(ssd);
 
-    ssd_init_params(n, spp);
+    ssd_init_params(n, spp); 
 
     /* initialize ssd internal layout architecture */
     ssd->ch = g_malloc0(sizeof(struct ssd_channel) * spp->nchs);
@@ -911,6 +916,7 @@ static uint64_t ssd_write(struct ssd *ssd, NvmeRequest *req)
         ppa = get_new_page(ssd);
         /* update maptbl */
         set_maptbl_ent(ssd, lpn, &ppa);
+
         /* update rmap */
         set_rmap_ent(ssd, lpn, &ppa);
 
@@ -931,6 +937,7 @@ static uint64_t ssd_write(struct ssd *ssd, NvmeRequest *req)
     return maxlat;
 }
 
+//extern bool H_TEST_LOG;
 static void *ftl_thread(void *arg)
 {
     FemuCtrl *n = (FemuCtrl *)arg;
@@ -974,9 +981,11 @@ static void *ftl_thread(void *arg)
 
             switch (req->cmd.opcode) {
             case NVME_CMD_WRITE:
+                if(H_TEST_LOG) printf("ftl write: 0x%lx\n",req->slba);
                 lat = ssd_write(ssd, req);
                 break;
             case NVME_CMD_READ:
+                if(H_TEST_LOG) printf("ftl read: 0x%lx\n", req->slba);
                 lat = ssd_read(ssd, req);
                 break;
             case NVME_CMD_DSM:

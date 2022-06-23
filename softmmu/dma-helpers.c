@@ -18,6 +18,7 @@
 
 /* #define DEBUG_IOMMU */
 
+//extern bool H_TEST_LOG;
 int dma_memory_set(AddressSpace *as, dma_addr_t addr, uint8_t c, dma_addr_t len)
 {
     dma_barrier(as, DMA_DIRECTION_FROM_DEVICE);
@@ -269,6 +270,7 @@ BlockAIOCB *dma_blk_read(BlockBackend *blk,
                          QEMUSGList *sg, uint64_t offset, uint32_t align,
                          void (*cb)(void *opaque, int ret), void *opaque)
 {
+    if(H_TEST_LOG) printf("dma blk read\n");
     return dma_blk_io(blk_get_aio_context(blk), sg, offset, align,
                       dma_blk_read_io_func, blk, cb, opaque,
                       DMA_DIRECTION_FROM_DEVICE);
@@ -287,6 +289,7 @@ BlockAIOCB *dma_blk_write(BlockBackend *blk,
                           QEMUSGList *sg, uint64_t offset, uint32_t align,
                           void (*cb)(void *opaque, int ret), void *opaque)
 {
+    if(H_TEST_LOG) printf("dma blk write\n");
     return dma_blk_io(blk_get_aio_context(blk), sg, offset, align,
                       dma_blk_write_io_func, blk, cb, opaque,
                       DMA_DIRECTION_TO_DEVICE);
@@ -296,6 +299,7 @@ BlockAIOCB *dma_blk_write(BlockBackend *blk,
 static uint64_t dma_buf_rw(uint8_t *ptr, int32_t len, QEMUSGList *sg,
                            DMADirection dir)
 {
+    if(H_TEST_LOG) printf("dma buf rw\n");
     //printf("ptr/%hhn, len/%d, base/%ld, len/%ld, size/%ld, dir/%d\n", ptr, len, sg->sg->base, sg->sg->len, sg->size, dir);
     uint64_t resid;
     int sg_cur_index;
