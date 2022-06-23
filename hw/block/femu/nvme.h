@@ -1502,7 +1502,7 @@ static inline uint16_t nvme_check_mdts(FemuCtrl *n, size_t len)
     do { printf("[FEMU] Log: " fmt, ## __VA_ARGS__); } while (0)
 
 // by HH: Custom debug log -----------------------------------------------------------------------------
-#define H_DEBUG_LOG
+//#define H_DEBUG_LOG
 #ifdef H_DEBUG_LOG
 #define h_log(fmt, ...) \
     do { fprintf(stderr, "[hoonhwi] Log: " fmt, ## __VA_ARGS__); } while (0)        
