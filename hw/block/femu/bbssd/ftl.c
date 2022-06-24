@@ -253,18 +253,12 @@ static void check_params(struct ssdparams *spp)
 void ssd_init_params(FemuCtrl *n, struct ssdparams *spp)
 {
     spp->secsz = 512;
-    // spp->secs_per_pg = 8;
-    // spp->pgs_per_blk = 256;
-    // spp->blks_per_pl = 256; /* 16GB */
-    spp->secs_per_pg = 32;
-    spp->pgs_per_blk = 512;
-    spp->blks_per_pl = 1024; /* 512GB */
+    spp->secs_per_pg = 8; // 4kb
+    spp->pgs_per_blk = 1024; //4MB
+    spp->blks_per_pl = 1024; // 4GB
     spp->pls_per_lun = 1;
-    spp->luns_per_ch = 8;
-
-    //* by HH: nb Channels
-    //spp->nchs = 8;
-    spp->nchs = 4;
+    spp->luns_per_ch = 8; //32 GB
+    spp->nchs = 8; // 256 GB
 
     // spp->pg_rd_lat = NAND_TLC_READ_LATENCY;
     // spp->pg_wr_lat = NAND_TLC_PROG_LATENCY;
@@ -850,7 +844,7 @@ static uint64_t ssd_read(struct ssd *ssd, NvmeRequest *req)
     int nsecs = req->nlb;
     struct ppa ppa;
     uint64_t start_lpn = lba / spp->secs_per_pg;
-    uint64_t end_lpn = (lba + nsecs) / spp->secs_per_pg;
+    uint64_t end_lpn = (lba + nsecs -1) / spp->secs_per_pg;
     uint64_t lpn;
     uint64_t sublat, maxlat = 0;
 

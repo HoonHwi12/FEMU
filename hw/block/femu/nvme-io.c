@@ -786,7 +786,6 @@ uint16_t nvme_rw(FemuCtrl *n, NvmeNamespace *ns, NvmeCmd *cmd, NvmeRequest *req)
 
     // by HH: ZNS IO check /////////////////////////////////////////////////
     zone = zns_get_zone_by_slba(ns, slba);
-    h_log("check write slba 0x%lx\n", slba);
 
     //if (nvme_check_mdts(n, data_size)) {
     if(n->mdts && data_size > n->page_size<<n->mdts) {
