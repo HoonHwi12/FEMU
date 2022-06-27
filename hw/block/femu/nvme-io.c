@@ -434,9 +434,6 @@ static void nvme_process_sq_io(void *opaque, int index_poller)
                     {
                         h_log("Over-provisioning? zone[%ld] SLC Data: %ld, DataRemain=%ld\n",
                             ((cmd.cdw10+1)/n->zone_capacity), tbl->num_slc_data, tbl->num_slc_data%3);
-
-                        h_log("wp: 0x%lx, req nlb: 0x%x, cmd nlb: 0x%x, req.slba: 0x%lx\n",
-                            slc_wp, req->cmd.cdw12, cmd.cdw12, req->slba); 
                         
                         if(tbl->num_slc_data%3 == 0)
                         {
@@ -445,8 +442,10 @@ static void nvme_process_sq_io(void *opaque, int index_poller)
                         }
 
                         h_log("Over-provision!\n");
-                        req_slba = req->slba;
+                        h_log("wp: 0x%lx, req nlb: 0x%x, cmd nlb: 0x%x, req.slba: 0x%lx\n",
+                            slc_wp, req->cmd.cdw12, cmd.cdw12, req->slba); 
 
+                        req_slba = req->slba;
                         cmd.cdw10 = slc_wp;
                         slc_wp += cmd.cdw12+1;                   
                     }
@@ -459,19 +458,18 @@ static void nvme_process_sq_io(void *opaque, int index_poller)
                 }
                 else
                 {
-                    req_slba = req->slba;
                     h_log("SLC wp: 0x%lx, req nlb: 0x%x, cmd nlb: 0x%x, req.slba: 0x%lx\n",
                         slc_wp, req->cmd.cdw12, cmd.cdw12, req->slba);
 
+                    req_slba = req->slba;
                     cmd.cdw10 = slc_wp;
-
                     slc_wp += cmd.cdw12+1;
                 }
 
                 req->slba = cmd.cdw10;
-                req->nlb = cmd.cdw12;
+                //req->nlb = cmd.cdw12;
                 req->cmd.cdw10 = cmd.cdw10;
-                req->cmd.cdw12 = cmd.cdw12;
+                //req->cmd.cdw12 = cmd.cdw12;
 
                 set_mapslc_ent( ((cmd.cdw10+1)/n->zone_capacity), req->slba, cmd.cdw12, req_slba);
             }

@@ -1048,6 +1048,31 @@ static uint16_t nvme_print_flash_type(FemuCtrl *n, NvmeCmd *cmd)
     return NVME_SUCCESS;
 }
 
+static inline int victim_line_cmp_pri(pqueue_pri_t next, pqueue_pri_t curr)
+{
+    return (next > curr);
+}
+
+static inline pqueue_pri_t victim_line_get_pri(void *a)
+{
+    return ((struct line *)a)->vpc;
+}
+
+static inline void victim_line_set_pri(void *a, pqueue_pri_t pri)
+{
+    ((struct line *)a)->vpc = pri;
+}
+
+static inline size_t victim_line_get_pos(void *a)
+{
+    return ((struct line *)a)->pos;
+}
+
+static inline void victim_line_set_pos(void *a, size_t pos)
+{
+    ((struct line *)a)->pos = pos;
+}
+
 static uint16_t nvme_zconfig_control(FemuCtrl *n, NvmeCmd *cmd)
 {
     if(cmd->cdw10 != 0x899) n->max_active_zones = cmd->cdw10;
@@ -1130,14 +1155,34 @@ static uint16_t nvme_zconfig_control(FemuCtrl *n, NvmeCmd *cmd)
         ssd->maptbl[i].ppa = UNMAPPED_PPA;
     }
 
-    // /* initialize rmap */
+    /* initialize rmap */
     for (int i = 0; i < spp->tt_pgs; i++) {
         ssd->rmap[i] = INVALID_LPN;
     }
 
-    // /* initialize all the lines */
+    /* initialize all the lines */
     struct line_mgmt *lm = &ssd->lm;
+    struct line *line;
 
+    QTAILQ_INIT(&lm->free_line_list);
+    lm->victim_line_pq = pqueue_init(spp->tt_lines, victim_line_cmp_pri,
+            victim_line_get_pri, victim_line_set_pri,
+            victim_line_get_pos, victim_line_set_pos);
+    QTAILQ_INIT(&lm->full_line_list);
+
+    lm->free_line_cnt = 0;
+    for (int i = 0; i < lm->tt_lines; i++)
+    {
+        line = &lm->lines[i];
+        line->id = i;
+        line->ipc = 0;
+        line->vpc = 0;
+        line->pos = 0;
+        /* initialize all the lines as free lines */
+        QTAILQ_INSERT_TAIL(&lm->free_line_list, line, entry);
+        lm->free_line_cnt++;
+    }
+    ftl_assert(lm->free_line_cnt == lm->tt_lines);
     lm->victim_line_cnt = 0;
     lm->full_line_cnt = 0;
 
@@ -1241,7 +1286,6 @@ static uint16_t nvme_zconfig_control(FemuCtrl *n, NvmeCmd *cmd)
 
         h_log("max active: %d\n", n->max_active_zones );
         h_log("max open: %d\n", n->max_open_zones );
-        h_log("femu mode: %d\n", n->femu_mode );
     // }
 
     return NVME_SUCCESS;
