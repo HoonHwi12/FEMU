@@ -8,6 +8,7 @@ bool H_TEST_LOG = false;
 
 struct slc_region rslc;
 uint64_t        slc_wp;
+uint64_t        TLC_START_ADDR;
 
 static inline uint32_t zns_zone_idx(NvmeNamespace *ns, uint64_t slba)
 {

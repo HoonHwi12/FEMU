@@ -158,8 +158,11 @@ static struct line *get_next_free_line(struct ssd *ssd)
     struct line *curline = NULL;
 
     curline = QTAILQ_FIRST(&lm->free_line_list);
+
     if (!curline) {
         ftl_err("No free lines left in [%s] !!!!\n", ssd->ssdname);
+        h_log("full line: %ls, free line: %ls\n",
+            &lm->full_line_cnt, &lm->free_line_cnt);
         return NULL;
     }
 

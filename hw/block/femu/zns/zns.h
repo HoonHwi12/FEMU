@@ -62,6 +62,7 @@ enum NvmeZoneSendAction {
 //* by HH
 extern struct slc_region rslc;
 extern uint64_t        slc_wp;
+extern uint64_t        TLC_START_ADDR;
 
 typedef struct slc_mapping {
     uint64_t zdslba;
@@ -106,7 +107,7 @@ h_log("zone index: %d, zdslba: 0x%lx, zdnlb: 0x%x, num_data: %ld, target_addr: 0
 
     tbl->num_slc_data++;
     h_log("tbl: %d, tbl_index: %ld, tlbslba: 0x%lx, tblnlb: 0x%x, target: 0x%lx",
-        zone_index, tbl->num_slc_data, map_tbl->zdslba, map_tbl->zdnlb, map_tbl->target);
+        zone_index, tbl->num_slc_data, map_tbl->zdslba, map_tbl->zdnlb, map_tbl->target_addr);
 }
 
 typedef struct QEMU_PACKED NvmeZoneDescr {

@@ -113,6 +113,7 @@ static void zns_init_zoned_state(NvmeNamespace *ns)
         if(i<2)
         {
             zone->d.zone_flash_type = SLC;
+            TLC_START_ADDR = zone->d.zslba + zone->d.zcap;
         }
         else
         {
@@ -147,9 +148,8 @@ static int zns_init_zone_cap(FemuCtrl *n)
 static void zns_init_zone_identify(FemuCtrl *n, NvmeNamespace *ns, int lba_index)
 {
     NvmeIdNsZoned *id_ns_z;
-h_log("zns init tbl\n");
+    h_log("zns init tbl\n");
     rslc.mapslc = g_new0(slctbl, n->num_zones);
-    h_log("here2\n");
     slctbl *tbl = rslc.mapslc;
     
     
@@ -159,7 +159,8 @@ h_log("zns init tbl\n");
         tbl++;
     }
     slc_wp = 0;
-h_log("zns init tbl end\n");
+
+    h_log("zns init tbl end\n");
     zns_init_zoned_state(ns);
 
     id_ns_z = g_malloc0(sizeof(NvmeIdNsZoned));

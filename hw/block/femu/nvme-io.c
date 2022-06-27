@@ -395,6 +395,10 @@ static void nvme_process_sq_io(void *opaque, int index_poller)
         //* by HH
         if(H_TEST_LOG)
         {
+            h_log("slba changed! oriaddr:0x%x, newaddr:0x%lx\n", cmd.cdw10, cmd.cdw10 + TLC_START_ADDR);
+            cmd.cdw10 += TLC_START_ADDR;
+            req->slba = cmd.cdw10;
+
             if(cmd.opcode == NVME_CMD_WRITE)
             {
                 NvmeZone *zone = n->zone_array;
@@ -411,69 +415,51 @@ static void nvme_process_sq_io(void *opaque, int index_poller)
                     zone_index++;
                     if(zone_index >= n->num_zones)
                     {
-                        h_log("no SLC zone found\n");
+                        h_log("No SLC zone remained\n");
                         break;
                     }
                     zone++;
                 }
                 if(zone_index>0) h_log("last SLC zone: %d, type %d, ZS: 0x%x\n", zone_index, zone->d.zone_flash_type, zone->d.zs);
 
-                if( (slc_wp + cmd.cdw12) > (zone->d.zslba + zone->d.zcap) )
+                if( (slc_wp + cmd.cdw12) > (zone->d.zslba + zone->d.zcap - (2*(n->num_zones))) )
                 {
-                    //* need TLC migration
-                    h_log("SLC region is full!, to TLC\n");
-                    zone++;
-                    zone_index++;
-                    while(zone->d.zs == NVME_ZONE_STATE_EMPTY)
+                    //* SLC FULL, to Overprovisioning?
+                    slctbl *tbl = rslc.mapslc;
+                    tbl += ((cmd.cdw10+1)/n->zone_capacity);
+                    //slc_mapping *map_tbl = tbl->slcmap;
+                    bool is_overprovision = tbl->num_slc_data % 3;
+
+                    if(is_overprovision && ((slc_wp + cmd.cdw12) < (zone->d.zslba + zone->d.zcap)))
                     {
-                        zone++;
-                        zone_index++;
-                        if(zone_index >= n->num_zones)
+                        h_log("Over-provisioning? zone[%ld] SLC Data: %ld, DataRemain=%ld\n",
+                            ((cmd.cdw10+1)/n->zone_capacity), tbl->num_slc_data, tbl->num_slc_data%3);
+
+                        h_log("wp: 0x%lx, req nlb: 0x%x, cmd nlb: 0x%x, req.slba: 0x%lx\n",
+                            slc_wp, req->cmd.cdw12, cmd.cdw12, req->slba); 
+                        
+                        if(tbl->num_slc_data%3 == 0)
                         {
-                            femu_err("no empty TLC found\n");
+                            h_log("SLC region is full!, to TLC\n");
+                            break;
                         }
+
+                        h_log("Over-provision!\n");
+                        req_slba = req->slba;
+
+                        cmd.cdw10 = slc_wp;
+                        slc_wp += cmd.cdw12+1;                   
                     }
-                    
-                    cmd.cdw10 = zone->d.zslba;
-                    h_log("TLC wp: 0x%x, nlb: 0x%x\n", cmd.cdw10, cmd.cdw12);
-            
-                    //uint16_t slc_index=0;
-                    // zone -= zone_index;
-                    // zone_index = 0;
-                    // h_log("need migration, pointer back to SLC 0, zslba: 0x%lx\n", zone->d.zslba);
+                    else
+                    {
+                        h_log("SLC region is full!, to TLC\n");
+                        break;
+                    }
 
-                    // cmd.cdw10 = zone->d.zslba;
-
-                    // slc_wp = zone->d.zslba + req->nlb;
-
-                    // //NvmeCmd gc_cmd;
-                    // NvmeRequest *gc_req;
-                    // memcpy(&gc_req, &req, sizeof(NvmeRequest));
-
-                    // //* TLC Migration
-                    // while(slc_index <= rslc.num_slc_data)
-                    // {
-                    //     if(rslc.mapslc[slc_index].g.zdslba <= (zone->d.zslba + req->nlb))
-                    //     {
-                    //         //* gc
-                    //         ppa = get_ma-ptbl_ent(ssd, lpn);                            
-                    //         mark_page_invalid(ssd, &ppa);
-                    //         set_rmap_ent(ssd, INVALID_LPN, &ppa);
-
-                    //         //* make invalid
-
-                    //         //* FTL write
-                    //         if (femu_ring_enqueue(n->to_ftl[index_poller], (void *)&gc_req, 1) != 1)
-                    //         {
-                    //             femu_err("Tlc migration enqueue failed\n", );
-                    //         }                            
-                    //     }
-                    //     slc_index++;
-                    //}
                 }
                 else
                 {
-                   req_slba = req->slba;
+                    req_slba = req->slba;
                     h_log("SLC wp: 0x%lx, req nlb: 0x%x, cmd nlb: 0x%x, req.slba: 0x%lx\n",
                         slc_wp, req->cmd.cdw12, cmd.cdw12, req->slba);
 
@@ -487,7 +473,6 @@ static void nvme_process_sq_io(void *opaque, int index_poller)
                 req->cmd.cdw10 = cmd.cdw10;
                 req->cmd.cdw12 = cmd.cdw12;
 
-                h_log("nvme-io.c: set mapslc\n");
                 set_mapslc_ent( ((cmd.cdw10+1)/n->zone_capacity), req->slba, cmd.cdw12, req_slba);
             }
         }
