@@ -1067,21 +1067,61 @@ static uint16_t nvme_zconfig_control(FemuCtrl *n, NvmeCmd *cmd)
     //* by HH: ssd init ******************************************
     struct ssd *ssd = n->ssd;
     struct ssdparams *spp = &ssd->sp;
+    struct ssd_channel *sch;
+    struct nand_lun *slun;
+    struct nand_plane *spl;
+    struct nand_block *sblk;
+    struct nand_page *spg;
 
-h_log("free memory\n");
-    //* free previous memory
-    free(ssd->ch);
+    //* no free previous memory
+    //free(ssd->ch);
     //*
-h_log("free complete\n");
-    ftl_assert(ssd);
 
-h_log("ssd_init_params\n");
+    h_log("ssd_init_params\n");
     ssd_init_params(n, spp);
 
     /* initialize ssd internal layout architecture */
-    ssd->ch = g_malloc0(sizeof(struct ssd_channel) * spp->nchs);
-    for (int i = 0; i < spp->nchs; i++) {
-        ssd_init_ch(&ssd->ch[i], spp);
+    for (int i = 0; i < spp->nchs; i++)
+    {
+        sch = ssd->ch;
+        sch->nluns = spp->luns_per_ch;
+        for (int i = 0; i < sch->nluns; i++)
+        {
+            slun = sch->lun;
+            slun->npls = spp->pls_per_lun;
+            for (int j = 0; j < slun->npls; j++)
+            {
+                spl = slun->pl;
+                spl->nblks = spp->blks_per_pl;
+                for (int k = 0; k < spl->nblks; k++)
+                {
+                    sblk = spl->blk;
+                    sblk->npgs = spp->pgs_per_blk;
+                    for (int z = 0; z < sblk->npgs; z++) {
+                        spg = sblk->pg;
+                        spg->nsecs = spp->secs_per_pg;
+                        for (int u = 0; u < spg->nsecs; u++) {
+                            spg->sec[u] = SEC_FREE;
+                        }
+                        spg->status = PG_FREE;
+                        spg++;
+                    }
+                    sblk->ipc = 0;
+                    sblk->vpc = 0;
+                    sblk->erase_cnt = 0;
+                    sblk->wp = 0;
+                    sblk++;
+                }
+                spl++;
+            }
+            slun->next_lun_avail_time = 0;
+            slun->busy = false;
+            slun++;
+        }   
+
+        sch->next_ch_avail_time = 0;
+        sch->busy = 0;
+        sch++;
     }
 
 
@@ -1110,7 +1150,7 @@ h_log("ssd_init_params\n");
         tbl->num_slc_data = 0;
         tbl++;
     }
-    slc_wp = 0;    
+    slc_wp = 0;  
     h_log("ssd_init complete\n");
     //* ssd init **************************************************
 
