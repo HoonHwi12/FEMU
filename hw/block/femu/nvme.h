@@ -1502,17 +1502,76 @@ static inline uint16_t nvme_check_mdts(FemuCtrl *n, size_t len)
     do { printf("[FEMU] Log: " fmt, ## __VA_ARGS__); } while (0)
 
 // by HH: Custom debug log -----------------------------------------------------------------------------
-#define H_DEBUG_LOG
-#ifdef H_DEBUG_LOG
-#define h_log(fmt, ...) \
-    do { fprintf(stderr, "[hoonhwi] Log: " fmt, ## __VA_ARGS__); } while (0)        
-#endif // HLOG
+#define H_DEBUG_LEVEL1
+#define H_DEBUG_LEVEL2
+#define H_DEBUG_NAND
+#define H_DEBUG_OVERPROVISION
+#define H_DEBUG_ADMIN
+#define H_DEBUG_READ
+//#define H_DEBUG_WRITE
 
-#ifndef H_DEBUG_LOG
+#ifdef H_DEBUG_LEVEL1
+#define h_log(fmt, ...) \
+    do { fprintf(stderr, "[hoonhwi] LEVEL1: " fmt, ## __VA_ARGS__); } while (0)        
+#endif
+#ifndef H_DEBUG_LEVEL1
 #define h_log(fmt, ...) \
     do {  } while (0)        
-#endif // HLOG
+#endif
 
+#ifdef H_DEBUG_LEVEL2
+#define h_log2(fmt, ...) \
+    do { fprintf(stderr, "[hoonhwi] LEVEL2: " fmt, ## __VA_ARGS__); } while (0)        
+#endif
+#ifndef H_DEBUG_LEVEL2
+#define h_log2(fmt, ...) \
+    do {  } while (0)        
+#endif
+
+#ifdef H_DEBUG_NAND
+#define h_log_nand(fmt, ...) \
+    do { fprintf(stderr, "[hoonhwi] NAND: " fmt, ## __VA_ARGS__); } while (0)        
+#endif
+#ifndef H_DEBUG_NAND
+#define h_log_nand(fmt, ...) \
+    do {  } while (0)        
+#endif
+
+#ifdef H_DEBUG_OVERPROVISION
+#define h_log_provision(fmt, ...) \
+    do { fprintf(stderr, "[hoonhwi] PROVISION: " fmt, ## __VA_ARGS__); } while (0)        
+#endif
+#ifndef H_DEBUG_OVERPROVISION
+#define h_log_provision(fmt, ...) \
+    do {  } while (0)        
+#endif
+
+#ifdef H_DEBUG_ADMIN
+#define h_log_admin(fmt, ...) \
+    do { fprintf(stderr, "[hoonhwi] ADMIN: " fmt, ## __VA_ARGS__); } while (0)        
+#endif
+#ifndef H_DEBUG_ADMIN
+#define h_log_admin(fmt, ...) \
+    do {  } while (0)        
+#endif
+
+#ifdef H_DEBUG_READ
+#define h_log_readcmd(fmt, ...) \
+    do { fprintf(stderr, "[hoonhwi] READCMD: " fmt, ## __VA_ARGS__); } while (0)        
+#endif
+#ifndef H_DEBUG_READ
+#define h_log_readcmd(fmt, ...) \
+    do {  } while (0)        
+#endif
+
+#ifdef H_DEBUG_WRITE
+#define h_log_writecmd(fmt, ...) \
+    do { fprintf(stderr, "[hoonhwi] WRITECMD: " fmt, ## __VA_ARGS__); } while (0)        
+#endif
+#ifndef H_DEBUG_WRITE
+#define h_log_writecmd(fmt, ...) \
+    do {  } while (0)        
+#endif
 // -----------------------------------------------------------------------------------------------------
 
 #endif /* __FEMU_NVME_H */

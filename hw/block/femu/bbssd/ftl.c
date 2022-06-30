@@ -100,8 +100,39 @@ void ssd_init_lines(struct ssd *ssd)
     struct line_mgmt *lm = &ssd->lm;
     struct line *line;
 
-    lm->tt_lines = spp->blks_per_pl;
-    ftl_assert(lm->tt_lines == spp->tt_lines);
+    spp->secsz = 512;
+    spp->secs_per_pg = 8; // 4kb
+    spp->pgs_per_blk = 1024; //4MB
+    spp->blks_per_pl = 1024; // 4GB
+    spp->pls_per_lun = 1;
+    spp->luns_per_ch = 4; //16 GB
+    spp->nchs = 2; // 32 GB
+
+    slm.tt_lines = (NUM_SLC_BLK) / spp->pgs_per_blk / spp->luns_per_ch / spp->nchs * 2;
+    slm.lines = g_malloc0(sizeof(struct line) * slm.tt_lines);
+
+    h_log("SLC line: %d, NUM_SLC_BLK: %ld, spp->blks_per_line: %d\n", slm.tt_lines, NUM_SLC_BLK, spp->blks_per_line);
+
+    QTAILQ_INIT(&slm.free_line_list);
+    QTAILQ_INIT(&slm.full_line_list);
+    slm.free_line_cnt = 0;
+    for (int i = 0; i < slm.tt_lines; i++) {
+        line = &slm.lines[i];
+        line->id = i;
+        line->ipc = 0;
+        line->vpc = 0;
+        line->pos = 0;
+        /* initialize all the lines as free lines */
+        QTAILQ_INSERT_TAIL(&slm.free_line_list, line, entry);
+        slm.free_line_cnt++;
+    }
+    ftl_assert(slm.free_line_cnt == slm.tt_lines);
+    slm.victim_line_cnt = 0;
+    slm.full_line_cnt = 0;   
+
+
+    lm->tt_lines = spp->blks_per_pl - slm.tt_lines;
+    ftl_assert(lm->tt_lines+slm.tt_lines == spp->tt_lines);
     lm->lines = g_malloc0(sizeof(struct line) * lm->tt_lines);
 
     QTAILQ_INIT(&lm->free_line_list);
@@ -133,6 +164,16 @@ void ssd_init_write_pointer(struct ssd *ssd)
     struct write_pointer *wpp = &ssd->wp;
     struct line_mgmt *lm = &ssd->lm;
     struct line *curline = NULL;
+
+    wpslc.curline = QTAILQ_FIRST(&slm.free_line_list);
+    QTAILQ_REMOVE(&slm.free_line_list, wpslc.curline, entry);
+    slm.free_line_cnt--;
+    
+    wpslc.ch = 0;
+    wpslc.lun = 0;
+    wpslc.pg = 0;
+    wpslc.blk = 0;
+    wpslc.pl = 0;
 
     curline = QTAILQ_FIRST(&lm->free_line_list);
     QTAILQ_REMOVE(&lm->free_line_list, curline, entry);
@@ -667,6 +708,28 @@ static void mark_page_valid(struct ssd *ssd, struct ppa *ppa)
     line->vpc++;
 }
 
+static void mark_slc_page_valid(struct ssd *ssd, struct ppa *ppa)
+{
+    struct nand_block *blk = NULL;
+    struct nand_page *pg = NULL;
+    struct line *line;
+
+    /* update page status */
+    pg = get_pg(ssd, ppa);
+    ftl_assert(pg->status == PG_FREE);
+    pg->status = PG_VALID;
+
+    /* update corresponding block status */
+    blk = get_blk(ssd, ppa);
+    ftl_assert(blk->vpc >= 0 && blk->vpc < ssd->sp.pgs_per_blk);
+    blk->vpc++;
+
+    /* update corresponding line status */
+    line = &(slm.lines[ppa->g.blk]);
+    ftl_assert(line>vpc >= 0 && line->vpc < ssd->sp.pgs_per_line);
+    line->vpc++;
+}
+
 static void mark_block_free(struct ssd *ssd, struct ppa *ppa)
 {
     struct ssdparams *spp = &ssd->sp;
@@ -934,6 +997,127 @@ static uint64_t ssd_write(struct ssd *ssd, NvmeRequest *req)
     return maxlat;
 }
 
+static uint64_t slc_write(struct ssd *ssd, NvmeRequest *req)
+{
+    struct ssdparams *spp = &ssd->sp;
+    uint64_t lba = req->slba;
+    int len = req->nlb;
+    uint64_t start_lpn = lba / spp->secs_per_pg;
+    uint64_t end_lpn = (lba + len) / spp->secs_per_pg;
+    struct ppa ppa;
+    uint64_t lpn;
+    uint64_t curlat = 0, maxlat = 0;
+
+    if (end_lpn >= spp->tt_pgs) {
+        //ftl_err("start_lpn=%"PRIu64",tt_pgs=%d\n", start_lpn, ssd->sp.tt_pgs);
+        ftl_err("end_lpn=%"PRIu64",tt_pgs=%d\n", end_lpn, spp->tt_pgs);
+    }
+
+    for (lpn = start_lpn; lpn <= end_lpn; lpn++) {
+        ppa = get_maptbl_ent(ssd, lpn);
+        if (mapped_ppa(&ppa)) {
+            /* update old page information first */
+            mark_page_invalid(ssd, &ppa);
+            set_rmap_ent(ssd, INVALID_LPN, &ppa);
+        }
+
+slctbl *tbl = rslc.mapslc;
+if(tbl->num_slc_data >261600) h_log2("new write\n");
+        /* new write */
+        ppa.ppa = 0;
+        ppa.g.ch = wpslc.ch;
+        ppa.g.lun = wpslc.lun;
+        ppa.g.pg = wpslc.pg;
+        ppa.g.blk = wpslc.blk;
+        ppa.g.pl = wpslc.pl;
+        ftl_assert(ppa.g.pl == 0);
+
+
+        /* update maptbl */
+        set_maptbl_ent(ssd, lpn, &ppa);
+
+        /* update rmap */
+        set_rmap_ent(ssd, lpn, &ppa);
+
+        mark_slc_page_valid(ssd, &ppa);
+
+        /* need to advance the write pointer here */
+        check_addr(wpslc.ch, spp->nchs);
+if(tbl->num_slc_data >261600) h_log_nand("select physical nand\n");
+        wpslc.ch++;
+        if (wpslc.ch == spp->nchs) {
+            wpslc.ch = 0;
+            check_addr(wpslc.lun, spp->luns_per_ch);
+            wpslc.lun++;
+            /* in this case, we should go to next lun */
+            if (wpslc.lun == spp->luns_per_ch) {
+                wpslc.lun = 0;
+                /* go to next page in the block */
+                check_addr(wpslc.pg, spp->pgs_per_blk);
+                wpslc.pg++;
+                if (wpslc.pg == spp->pgs_per_blk) {
+                    wpslc.pg = 0;
+                    /* move current line to {victim,full} line list */
+                    if(tbl->num_slc_data >261600) h_log_nand("wpslc.curline->vpc:%d, spp->pgs_per_line:%d\n", wpslc.curline->vpc, spp->pgs_per_line);
+                    if (wpslc.curline->vpc == spp->pgs_per_line) {
+                        if(tbl->num_slc_data >261600) h_log_nand("move current line to victim\n");
+                        /* all pgs are still valid, move to full line list */
+                        if(tbl->num_slc_data >261600) h_log_nand("move current line to full\n");
+                        ftl_assert(wpslc.curline->ipc == 0);
+                        QTAILQ_INSERT_TAIL(&slm.full_line_list, wpslc.curline, entry);
+                        slm.full_line_cnt++;
+                    } else {
+                        ftl_assert(wpslc.curline->vpc >= 0 && wpslc.curline->vpc < spp->pgs_per_line);
+                        /* there must be some invalid pages in this line */
+                        ftl_assert(wpslc.curline->ipc > 0);
+                        pqueue_insert(slm.victim_line_pq, wpslc.curline);
+                        slm.victim_line_cnt++;
+                    }
+                    /* current line is used up, pick another empty line */
+                    if(tbl->num_slc_data >261600) h_log_nand("pick another empty line\n");
+                    check_addr(wpslc.blk, spp->blks_per_pl);
+                    wpslc.curline = NULL;
+                    wpslc.curline = QTAILQ_FIRST(&slm.free_line_list);
+
+                    if (!wpslc.curline) {
+                        ftl_err("No free lines left in [%s] !!!!\n", ssd->ssdname);
+                        h_log("total lines: %d, full line: %d, free line: %d\n",
+                            slm.tt_lines, slm.full_line_cnt, slm.free_line_cnt);
+                    }
+
+                    QTAILQ_REMOVE(&slm.free_line_list, wpslc.curline, entry);
+                    slm.free_line_cnt--;
+
+                    if (!wpslc.curline) {
+                        /* TODO */
+                        abort();
+                    }
+                    wpslc.blk = wpslc.curline->id;
+                    check_addr(wpslc.blk, spp->blks_per_pl);
+                    /* make sure we are starting from page 0 in the super block */
+                    ftl_assert(wpslc.pg == 0);
+                    ftl_assert(wpslc.lun == 0);
+                    ftl_assert(wpslc.ch == 0);
+                    /* TODO: assume # of pl_per_lun is 1, fix later */
+                    ftl_assert(wpslc.pl == 0);
+                }
+            }
+        }
+        if(tbl->num_slc_data >261600) h_log_nand("slm_tt_lines:%d, pg:%d, blk:%d, lun:%d, ch:%d, pl:%d\n",
+            slm.tt_lines, wpslc.pg, wpslc.blk, wpslc.lun, wpslc.ch, wpslc.pl);
+
+        struct nand_cmd swr;
+        swr.type = USER_IO;
+        swr.cmd = NAND_WRITE;
+        swr.stime = req->stime;
+        /* get latency statistics */
+        curlat = ssd_advance_status(ssd, &ppa, &swr, req->zone_flash_type);
+        maxlat = (curlat > maxlat) ? curlat : maxlat;
+    }
+
+    return maxlat;
+}
+
 //extern bool H_TEST_LOG;
 static void *ftl_thread(void *arg)
 {
@@ -975,14 +1159,23 @@ static void *ftl_thread(void *arg)
             zone += zone_idx;
             req->zone_flash_type = zone->d.zone_flash_type;
             //*******************************************************
-
+slctbl *tbl = rslc.mapslc;
             switch (req->cmd.opcode) {
             case NVME_CMD_WRITE:
-                if(H_TEST_LOG) printf("ftl write: 0x%lx\n",req->slba);
-                lat = ssd_write(ssd, req);
+                if(H_TEST_LOG && (tbl->num_slc_data >261600)) h_log2("ftl write: 0x%lx\n",req->slba);
+                if(req->cmd.cdw15 != 0x89)
+                {
+                    if(tbl->num_slc_data >261600) h_log2("not slc!\n");
+                    lat = ssd_write(ssd, req);
+                }
+                else
+                {
+                    if(tbl->num_slc_data >261600) h_log2("slc write!\n");
+                    lat = slc_write(ssd, req);
+                }
                 break;
             case NVME_CMD_READ:
-                if(H_TEST_LOG) printf("ftl read: 0x%lx\n", req->slba);
+                if(H_TEST_LOG) h_log("ftl read: 0x%lx\n", req->slba);
                 lat = ssd_read(ssd, req);
                 break;
             case NVME_CMD_DSM:

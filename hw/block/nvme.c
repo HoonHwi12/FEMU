@@ -993,21 +993,17 @@ static uint16_t nvme_rw(NvmeCtrl *n, NvmeRequest *req)
     block_acct_start(blk_get_stats(blk), &req->acct, data_size, acct);
     if (req->qsg.sg) {
         if (acct == BLOCK_ACCT_WRITE) {
-            h_log("dma blk write\n");
             req->aiocb = dma_blk_write(blk, &req->qsg, data_offset,
                                        BDRV_SECTOR_SIZE, nvme_rw_cb, req);
         } else {
-            h_log("dma blk read\n");
             req->aiocb = dma_blk_read(blk, &req->qsg, data_offset,
                                       BDRV_SECTOR_SIZE, nvme_rw_cb, req);
         }
     } else {
         if (acct == BLOCK_ACCT_WRITE) {
-            h_log("blk acct write\n");
             req->aiocb = blk_aio_pwritev(blk, data_offset, &req->iov, 0,
                                          nvme_rw_cb, req);
         } else {
-            h_log("blk acct read\n");
             req->aiocb = blk_aio_preadv(blk, data_offset, &req->iov, 0,
                                         nvme_rw_cb, req);
         }

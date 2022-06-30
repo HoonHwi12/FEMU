@@ -98,6 +98,7 @@ static void zns_init_zoned_state(NvmeNamespace *ns)
 
     zone = n->zone_array;
 
+    NUM_SLC_BLK = 0;
     for (i = 0; i < n->num_zones; i++, zone++) {
         if (start + zone_size > capacity) {
             zone_size = capacity - start;
@@ -110,10 +111,11 @@ static void zns_init_zoned_state(NvmeNamespace *ns)
         zone->d.wp = start;
 
         // by HH ---------------------------------------------------
-        if(i<2)
+        if(i < 2)
         {
             zone->d.zone_flash_type = SLC;
-            TLC_START_ADDR = zone->d.zslba + zone->d.zcap;
+            TLC_START_LBA = zone->d.zslba + zone->d.zcap;
+            NUM_SLC_BLK += zone->d.zcap;
         }
         else
         {
@@ -795,7 +797,6 @@ static void bb_init(FemuCtrl *n, Error **errp)
     ssd->dataplane_started_ptr = &n->dataplane_started;
     ssd->ssdname = (char *)n->devname;
     femu_debug("Starting FEMU in Blackbox-SSD mode ...\n");
-    ssd_init(n);
 
     // by HH //////////////////////////////////////////////////////////
      NvmeNamespace *ns = &n->namespaces[0];
@@ -806,6 +807,7 @@ static void bb_init(FemuCtrl *n, Error **errp)
      }
      zns_init_zone_identify(n, ns, 0);
     /////////////////////////////////////////////////////////////////////    
+    ssd_init(n);
 }
 
 static void bb_flip(FemuCtrl *n, NvmeCmd *cmd)

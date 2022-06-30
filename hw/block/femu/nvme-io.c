@@ -395,99 +395,193 @@ static void nvme_process_sq_io(void *opaque, int index_poller)
         //* by HH
         if(H_TEST_LOG)
         {
-            h_log("slba changed! oriaddr:0x%x, newaddr:0x%lx\n", cmd.cdw10, cmd.cdw10 + TLC_START_ADDR);
-            cmd.cdw10 += TLC_START_ADDR;
-            req->slba = cmd.cdw10;
-
             if(cmd.opcode == NVME_CMD_WRITE)
             {
-                NvmeZone *zone = n->zone_array;
+                //cmd.cdw10 += TLC_START_LBA & 0xFFFFFFFF;
+                //cmd.cdw11 += TLC_START_LBA >> 32;
+
+                req->slba = cmd.cdw10 + ((uint64_t)cmd.cdw11<<32);
+                req->cmd.cdw10 = req->slba & 0xFFFFFFFF;
+                req->cmd.cdw11 = req->slba >> 32;
+
+                NvmeZone *zone;
+                NvmeZone *ori_zone;
                 uint16_t zone_index=0;
                 uint64_t req_slba = 0;
                 
+                ori_zone = zns_get_zone_by_slba(n->namespaces, req->slba);
+                if (zns_check_zone_write(n, n->namespaces, ori_zone, req->slba, cmd.cdw12, false)) {
+                    femu_err("*********ZONE check Error*********\n");
+                    break;
+                }
+
+                zone = n->zone_array;
                 // move to end of the SLC region
-                while (zone->d.zone_flash_type != SLC ||
-                        zone->d.zs>>4 == 0xD ||
-                        zone->d.zs>>4 == 0xE ||
-                        zone->d.zs>>4 == 0xF )
+                while (zone->d.zone_flash_type != SLC || zone->d.zs>>4 == 0xD || zone->d.zs>>4 == 0xE || zone->d.zs>>4 == 0xF )
                 {
-                    h_log("zone %d type %d\n", zone_index, zone->d.zone_flash_type);
                     zone_index++;
                     if(zone_index >= n->num_zones)
                     {
-                        h_log("No SLC zone remained\n");
                         break;
                     }
                     zone++;
                 }
-                if(zone_index>0) h_log("last SLC zone: %d, type %d, ZS: 0x%x\n", zone_index, zone->d.zone_flash_type, zone->d.zs);
 
-                if( (slc_wp + cmd.cdw12) > (zone->d.zslba + zone->d.zcap - (2*(n->num_zones))) )
+                if( (slc_wp + cmd.cdw12) > (NUM_SLC_BLK - (2*(n->num_zones))) )
                 {
+                    h_log_provision("over provision? n->num_zones: %d\n", n->num_zones);
                     //* SLC FULL, to Overprovisioning?
                     slctbl *tbl = rslc.mapslc;
-                    tbl += ((cmd.cdw10+1)/n->zone_capacity);
+                    tbl += ((req->slba)/n->zone_capacity);
                     //slc_mapping *map_tbl = tbl->slcmap;
-                    bool is_overprovision = tbl->num_slc_data % 3;
 
-                    if(is_overprovision && ((slc_wp + cmd.cdw12) < (zone->d.zslba + zone->d.zcap)))
+                    if((slc_wp + cmd.cdw12) < (zone->d.zslba + zone->d.zcap))
                     {
-                        h_log("Over-provisioning? zone[%ld] SLC Data: %ld, DataRemain=%ld\n",
-                            ((cmd.cdw10+1)/n->zone_capacity), tbl->num_slc_data, tbl->num_slc_data%3);
+                        h_log_provision("Over-provisioning? zone[%ld] SLC Data: %ld, DataRemain=%ld\n",
+                            ((req->slba)/n->zone_capacity), tbl->num_slc_data, tbl->num_slc_data%3);
                         
                         if(tbl->num_slc_data%3 == 0)
                         {
-                            h_log("SLC region is full!, to TLC\n");
-                            break;
+                            h_log_provision("tbl_Data:%ld, no over-provision!, to TLC\n", tbl->num_slc_data%3);
                         }
+                        else
+                        {
+                            h_log_provision("Over-provision!\n");
+                            h_log_provision("wp: 0x%lx, req nlb: 0x%x, cmd nlb: 0x%x, req.slba: 0x%lx\n",
+                                slc_wp, req->cmd.cdw12, cmd.cdw12, req->slba); 
 
-                        h_log("Over-provision!\n");
-                        h_log("wp: 0x%lx, req nlb: 0x%x, cmd nlb: 0x%x, req.slba: 0x%lx\n",
-                            slc_wp, req->cmd.cdw12, cmd.cdw12, req->slba); 
+                            req_slba = req->slba;
 
-                        req_slba = req->slba;
-                        cmd.cdw10 = slc_wp;
-                        slc_wp += cmd.cdw12+1;                   
+                            cmd.cdw10 = slc_wp & 0xFFFFFFFF;
+                            cmd.cdw11 = slc_wp >> 32;
+                            slc_wp += cmd.cdw12+1;                   
+
+                            req->cmd.cdw15 = 0x89; //slc flag
+
+                            ori_zone->w_ptr += cmd.cdw12 + 1;
+                            ori_zone->d.wp += cmd.cdw12 + 1;
+                            if (ori_zone->d.wp == zns_zone_wr_boundary(ori_zone))
+                            {
+                                switch (zns_get_zone_state(ori_zone))
+                                {
+                                case NVME_ZONE_STATE_IMPLICITLY_OPEN:
+                                case NVME_ZONE_STATE_EXPLICITLY_OPEN:
+                                    zns_aor_dec_open(n->namespaces);
+
+                                    /* fall through */
+                                case NVME_ZONE_STATE_CLOSED:
+                                    zns_aor_dec_active(n->namespaces);
+                                    /* fall through */
+                                case NVME_ZONE_STATE_EMPTY:
+
+                                    zns_assign_zone_state(n->namespaces, ori_zone, NVME_ZONE_STATE_FULL);
+
+                                    /* fall through */
+                                case NVME_ZONE_STATE_FULL:
+                                    
+                                    break;
+                                default:
+                                    assert(false);
+                                }
+                            }
+                        }
                     }
                     else
                     {
-                        h_log("SLC region is full!, to TLC\n");
-                        break;
+                        h_log_provision("SLC region is full!, to TLC\n");
                     }
-
                 }
                 else
                 {
-                    h_log("SLC wp: 0x%lx, req nlb: 0x%x, cmd nlb: 0x%x, req.slba: 0x%lx\n",
-                        slc_wp, req->cmd.cdw12, cmd.cdw12, req->slba);
-
                     req_slba = req->slba;
-                    cmd.cdw10 = slc_wp;
+                    
+                    cmd.cdw10 = slc_wp & 0xFFFFFFFF;
+                    cmd.cdw11 = slc_wp >> 32;
                     slc_wp += cmd.cdw12+1;
+
+                    req->cmd.cdw15 = 0x89; //slc flag
+
+                    ori_zone->w_ptr += cmd.cdw12 + 1;
+                    ori_zone->d.wp += cmd.cdw12 + 1;
+                    if (ori_zone->d.wp == zns_zone_wr_boundary(ori_zone))
+                    {
+                        switch (zns_get_zone_state(ori_zone))
+                        {
+                        case NVME_ZONE_STATE_IMPLICITLY_OPEN:
+                        case NVME_ZONE_STATE_EXPLICITLY_OPEN:
+                            zns_aor_dec_open(n->namespaces);
+
+                            /* fall through */
+                        case NVME_ZONE_STATE_CLOSED:
+                            zns_aor_dec_active(n->namespaces);
+                            /* fall through */
+                        case NVME_ZONE_STATE_EMPTY:
+
+                            zns_assign_zone_state(n->namespaces, ori_zone, NVME_ZONE_STATE_FULL);
+
+                            /* fall through */
+                        case NVME_ZONE_STATE_FULL:
+                            
+                            break;
+                        default:
+                            assert(false);
+                        }
+                    }
                 }
 
-                req->slba = cmd.cdw10;
-                //req->nlb = cmd.cdw12;
+                req->slba = cmd.cdw10 + ((uint64_t)cmd.cdw11<<32);
                 req->cmd.cdw10 = cmd.cdw10;
-                //req->cmd.cdw12 = cmd.cdw12;
+                req->cmd.cdw11 = cmd.cdw11;
 
-                set_mapslc_ent( ((cmd.cdw10+1)/n->zone_capacity), req->slba, cmd.cdw12, req_slba);
+               set_mapslc_ent( ((req_slba)/n->zone_capacity), req->slba, cmd.cdw12, req_slba);
+            }
+            else if(cmd.opcode == NVME_CMD_READ)
+            {
+                //cmd.cdw10 += TLC_START_LBA & 0xFFFFFFFF;
+                //cmd.cdw11 += TLC_START_LBA >> 32;
+
+                req->slba = cmd.cdw10 + ((uint64_t)cmd.cdw11<<32);
+                req->cmd.cdw10 = req->slba & 0xFFFFFFFF;
+                req->cmd.cdw11 = req->slba >> 32;
+
+                slctbl *tbl = rslc.mapslc;
+
+                tbl += ((req->slba)/n->zone_capacity);
+
+                h_log_readcmd("read target slba: 0x%lx\n", req->slba);
+                h_log_readcmd("tbl[%ld] num data: %ld\n",
+                    (req->slba)/n->zone_capacity, tbl->num_slc_data);
+
+                slc_mapping *map_tbl = tbl->slcmap;
+
+                for(int i=0; i < tbl->num_slc_data; i++)
+                {
+                    h_log_readcmd("map_tbl[%d] slc_addr:0x%lx, map_tbl_target:0x%lx, req->slba:0x%lx\n",
+                        i, map_tbl->zdslba, map_tbl->target_addr, req->slba);
+                    if( map_tbl->target_addr == req->slba && map_tbl->isvalid == true)
+                    {
+                        cmd.cdw10 = map_tbl->zdslba & 0xFFFFFFFF;
+                        cmd.cdw11 = map_tbl->zdslba >> 32;
+
+                        req->slba = cmd.cdw10 + ((uint64_t)cmd.cdw11<<32);
+                        req->cmd.cdw10 = req->slba & 0xFFFFFFFF;
+                        req->cmd.cdw11 = req->slba >> 32;
+                    }
+                    map_tbl++;
+                }
             }
         }
-
 
         if (n->print_log) {
             femu_debug("%s,cid:%d\n", __func__, cmd.cid);
         }
 
-        if(cmd.opcode == NVME_CMD_WRITE && H_TEST_LOG)
-        {
-            h_log("nvme-io.c: nvme_io_cmd, slba: 0x%lx\n", req->slba);
-        }
         status = nvme_io_cmd(n, &cmd, req);
         if (1 && status == NVME_SUCCESS) {
             req->status = status;
-            if(cmd.opcode == NVME_CMD_WRITE && H_TEST_LOG) h_log("nvme-io.c: femu_ring_enqueue\n");
+
+            slctbl *tbl = rslc.mapslc;
+            if(cmd.opcode == NVME_CMD_WRITE && H_TEST_LOG && (tbl->num_slc_data >261600)) h_log2("nvme-io.c: femu_ring_enqueue\n");
             int rc = femu_ring_enqueue(n->to_ftl[index_poller], (void *)&req, 1);
             if (rc != 1) {
                 femu_err("enqueue failed, ret=%d\n", rc);
@@ -623,7 +717,7 @@ static void *nvme_poller(void *arg)
         }
         break;
     default:
-        printf("num io queues: %d\n", n->num_io_queues);
+        printf("Hoonhwi] Number of IO Queues: %d\n", n->num_io_queues);
         while (1) {
             if ((!n->dataplane_started)) {
                 usleep(1000);
@@ -817,11 +911,10 @@ uint16_t nvme_rw(FemuCtrl *n, NvmeNamespace *ns, NvmeCmd *cmd, NvmeRequest *req)
         }
     }
     ///////////////////////////////////////////////////////////////////////////
-
+slctbl *tbl = rslc.mapslc;
     if(H_TEST_LOG)
     {
-        h_log("nvme io\n");
-        h_log("backend rw: 0x%lx\n", req->slba);
+        if(tbl->num_slc_data >261600) h_log2("backend rw: 0x%lx\n", req->slba);
     }
     ret = backend_rw(n->mbe, &req->qsg, &data_offset, req->is_write);
     if (ret) {

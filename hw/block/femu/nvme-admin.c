@@ -1029,6 +1029,7 @@ static uint16_t nvme_print_flash_type(FemuCtrl *n, NvmeCmd *cmd)
     if(print_range > n->num_zones) print_range = n->num_zones;
 
     printf("\n");
+    printf("NUM_SLC_BLK: %ld, NUM_SLC_LINE: %d\n", NUM_SLC_BLK, slm.tt_lines);
     printf("zone_max_open: %d, zone_max_active: %d, zone_nr_open: %d, zone_nr_active: %d\n",
         n->max_open_zones, n->max_active_zones, n->nr_open_zones, n->nr_active_zones);
     printf("%15sslba %3scapacity %4swptr %6sstate %6stype %2sfalsh\n",
@@ -1101,11 +1102,13 @@ static uint16_t nvme_zconfig_control(FemuCtrl *n, NvmeCmd *cmd)
     //* no free previous memory
     //free(ssd->ch);
     //*
-
-    h_log("ssd_init_params\n");
+    h_log_admin("ssd init start!\n");
+   slctbl *tbl = rslc.mapslc;
+    if(tbl->num_slc_data >261600) h_log2("ssd_init_params\n");
     ssd_init_params(n, spp);
 
     /* initialize ssd internal layout architecture */
+    h_log_admin("initialize ssd layout\n");
     for (int i = 0; i < spp->nchs; i++)
     {
         sch = ssd->ch;
@@ -1148,6 +1151,7 @@ static uint16_t nvme_zconfig_control(FemuCtrl *n, NvmeCmd *cmd)
         sch->busy = 0;
         sch++;
     }
+    h_log_admin("initialize ssd layout finish\n");
 
 
     /* initialize maptbl */
@@ -1161,8 +1165,27 @@ static uint16_t nvme_zconfig_control(FemuCtrl *n, NvmeCmd *cmd)
     }
 
     /* initialize all the lines */
+    h_log_admin("initialize lines\n");
     struct line_mgmt *lm = &ssd->lm;
     struct line *line;
+
+    QTAILQ_INIT(&slm.free_line_list);
+    QTAILQ_INIT(&slm.full_line_list);
+    slm.free_line_cnt = 0;
+    for (int i = 0; i < slm.tt_lines; i++) {
+        line = &slm.lines[i];
+        line->id = i;
+        line->ipc = 0;
+        line->vpc = 0;
+        line->pos = 0;
+        /* initialize all the lines as free lines */
+        QTAILQ_INSERT_TAIL(&slm.free_line_list, line, entry);
+        slm.free_line_cnt++;
+    }
+    ftl_assert(slm.free_line_cnt == slm.tt_lines);
+    slm.victim_line_cnt = 0;
+    slm.full_line_cnt = 0;   
+
 
     QTAILQ_INIT(&lm->free_line_list);
     lm->victim_line_pq = pqueue_init(spp->tt_lines, victim_line_cmp_pri,
@@ -1187,16 +1210,17 @@ static uint16_t nvme_zconfig_control(FemuCtrl *n, NvmeCmd *cmd)
     lm->full_line_cnt = 0;
 
     /* initialize write pointer, this is how we allocate new pages for writes */
+    h_log_admin("initialize write pointer\n");
     ssd_init_write_pointer(ssd);
 
-    slctbl *tbl = rslc.mapslc;
+    //slctbl *tbl = rslc.mapslc;
     for(int temp=0; temp<n->num_zones; temp++)
     {
         tbl->num_slc_data = 0;
         tbl++;
     }
     slc_wp = 0;  
-    h_log("ssd_init complete\n");
+    h_log_admin("ssd_init complete\n");
     //* ssd init **************************************************
 
     NvmeNamespace *ns = &n->namespaces[0];

@@ -4,11 +4,17 @@
 #define NVME_DEFAULT_ZONE_SIZE      (128 * MiB)
 #define NVME_DEFAULT_MAX_AZ_SIZE    (128 * KiB)
 
+//* by HH
+#include "../bbssd/ftl.h"
 bool H_TEST_LOG = false;
 
 struct slc_region rslc;
+struct write_pointer wpslc;
+struct line_mgmt slm;
 uint64_t        slc_wp;
-uint64_t        TLC_START_ADDR;
+uint64_t        TLC_START_LBA;
+uint64_t        NUM_SLC_BLK;
+//*
 
 static inline uint32_t zns_zone_idx(NvmeNamespace *ns, uint64_t slba)
 {
@@ -1241,7 +1247,6 @@ static uint16_t zns_write(FemuCtrl *n, NvmeNamespace *ns, NvmeCmd *cmd,
         goto err;
     }
 
-    h_log("zns io\n");
     backend_rw(n->mbe, &req->qsg, &data_offset, req->is_write);
     zns_finalize_zoned_write(ns, req, false);
 
