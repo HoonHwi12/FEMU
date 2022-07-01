@@ -730,10 +730,7 @@ uint16_t nvme_rw(FemuCtrl *n, NvmeNamespace *ns, NvmeCmd *cmd, NvmeRequest *req,
     const uint16_t ms = le16_to_cpu(ns->id_ns.lbaf[lba_index].ms);
     const uint8_t data_shift = ns->id_ns.lbaf[lba_index].lbads;
     uint64_t data_size = (uint64_t)nlb << data_shift;
-    uint64_t data_offset;
-
-    //uint64_t data_offset = slba << data_shift;
-    //by HH: zns data offset
+    uint64_t data_offset = slba << data_shift;
 
     uint64_t meta_size = nlb * ms;
     uint64_t elba = slba + nlb;
@@ -798,12 +795,11 @@ uint16_t nvme_rw(FemuCtrl *n, NvmeNamespace *ns, NvmeCmd *cmd, NvmeRequest *req,
 
         if (is_append) {
             slba = zone->w_ptr;
+            data_offset = zns_l2b(ns, slba);
         }
 
         NvmeZonedResult *res = (NvmeZonedResult *)&req->cqe;
         res->slba = zns_advance_zone_wp(ns, zone, nlb);
-
-        data_offset = zns_l2b(ns, slba);
 
         if (zns_map_dptr(n, data_size, req)) {
             femu_err("hoonhwi:*********ZONE Map DPTR Error*********\n");
