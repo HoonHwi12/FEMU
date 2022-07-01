@@ -1442,7 +1442,7 @@ void nvme_post_cqes_io(void *opaque);
 void nvme_create_poller(FemuCtrl *n);
 
 /* NVMe I/O */
-uint16_t nvme_rw(FemuCtrl *n, NvmeNamespace *ns, NvmeCmd *cmd, NvmeRequest *req);
+uint16_t nvme_rw(FemuCtrl *n, NvmeNamespace *ns, NvmeCmd *cmd, NvmeRequest *req, bool is_append);
 
 int nvme_register_ocssd12(FemuCtrl *n);
 int nvme_register_ocssd20(FemuCtrl *n);

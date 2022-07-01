@@ -15,7 +15,7 @@ static uint16_t nop_io_cmd(FemuCtrl *n, NvmeNamespace *ns, NvmeCmd *cmd,
     switch (cmd->opcode) {
     case NVME_CMD_READ:
     case NVME_CMD_WRITE:
-        return nvme_rw(n, ns, cmd, req);
+        return nvme_rw(n, ns, cmd, req, false);
     default:
         return NVME_INVALID_OPCODE | NVME_DNR;
     }

@@ -902,7 +902,13 @@ static void bb_flip(FemuCtrl *n, NvmeCmd *cmd)
 static uint16_t bb_nvme_rw(FemuCtrl *n, NvmeNamespace *ns, NvmeCmd *cmd,
                            NvmeRequest *req)
 {
-    return nvme_rw(n, ns, cmd, req);
+    return nvme_rw(n, ns, cmd, req, false);
+}
+
+static uint16_t bb_nvme_rw_append(FemuCtrl *n, NvmeNamespace *ns, NvmeCmd *cmd,
+                           NvmeRequest *req)
+{
+    return nvme_rw(n, ns, cmd, req, true);
 }
 
 static uint16_t bb_io_cmd(FemuCtrl *n, NvmeNamespace *ns, NvmeCmd *cmd,
@@ -912,14 +918,14 @@ static uint16_t bb_io_cmd(FemuCtrl *n, NvmeNamespace *ns, NvmeCmd *cmd,
     case NVME_CMD_READ:
     case NVME_CMD_WRITE:
         return bb_nvme_rw(n, ns, cmd, req);
-    
+    case NVME_CMD_ZONE_APPEND:
+        return bb_nvme_rw_append(n, ns, cmd, req);
+
     //by HH: added zone IO cmd
     case NVME_CMD_ZONE_MGMT_SEND:
         return zns_zone_mgmt_send(n, req);
     case NVME_CMD_ZONE_MGMT_RECV:
         return zns_zone_mgmt_recv(n, req);
-    // case NVME_CMD_ZONE_APPEND: need to add!
-    //     return zns_zone_append(n, req);        
         
     default:
         printf("invalid opcode %d\n", cmd->opcode);
