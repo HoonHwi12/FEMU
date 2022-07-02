@@ -193,14 +193,18 @@ typedef struct line {
 } line;
 
 /* wp: record next write addr */
-struct write_pointer {
+typedef struct write_pointer {
     struct line *curline;
     int ch;
     int lun;
     int pg;
     int blk;
     int pl;
-};
+}write_pointer;
+
+typedef struct w_pointer {
+    write_pointer *wpnand;
+}w_pointer;
 
 struct line_mgmt {
     struct line *lines;

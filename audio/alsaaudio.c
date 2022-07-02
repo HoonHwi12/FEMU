@@ -807,7 +807,6 @@ static size_t alsa_read(HWVoiceIn *hw, void *buf, size_t len)
 {
     ALSAVoiceIn *alsa = (ALSAVoiceIn *) hw;
     size_t pos = 0;
-
     while (len) {
         void *dst = advance(buf, pos);
         snd_pcm_sframes_t nread;

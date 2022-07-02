@@ -1521,7 +1521,6 @@ size_t audio_generic_write(HWVoiceOut *hw, void *buf, size_t size)
 size_t audio_generic_read(HWVoiceIn *hw, void *buf, size_t size)
 {
     size_t total = 0;
-
     while (total < size) {
         size_t src_size = size - total;
         void *src = hw->pcm_ops->get_buffer_in(hw, &src_size);

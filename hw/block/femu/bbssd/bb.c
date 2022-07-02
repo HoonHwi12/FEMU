@@ -111,11 +111,15 @@ static void zns_init_zoned_state(NvmeNamespace *ns)
         zone->d.wp = start;
 
         // by HH ---------------------------------------------------
-        if(i < 2)
+        if(i < 1)
         {
             zone->d.zone_flash_type = SLC;
             TLC_START_LBA = zone->d.zslba + zone->d.zcap;
             NUM_SLC_BLK += zone->d.zcap;
+
+            n->namespaces->id_ns.nsze = cpu_to_le64(n->namespaces->id_ns.nsze - n->zone_size);
+            n->namespaces->id_ns.ncap = ns->id_ns.nsze;
+            n->namespaces->id_ns.nuse = ns->id_ns.ncap;            
         }
         else
         {
@@ -152,8 +156,9 @@ static void zns_init_zone_identify(FemuCtrl *n, NvmeNamespace *ns, int lba_index
     NvmeIdNsZoned *id_ns_z;
     h_log("zns init tbl\n");
     rslc.mapslc = g_new0(slctbl, n->num_zones);
+    wpzone.wpnand = g_new0(write_pointer, n->num_zones);
+
     slctbl *tbl = rslc.mapslc;
-    
     
     for(int temp=0; temp < n->num_zones; temp++)
     {
@@ -164,7 +169,6 @@ static void zns_init_zone_identify(FemuCtrl *n, NvmeNamespace *ns, int lba_index
 
     h_log("zns init tbl end\n");
     zns_init_zoned_state(ns);
-
     id_ns_z = g_malloc0(sizeof(NvmeIdNsZoned));
 
     /* MAR/MOR are zeroes-based, 0xffffffff means no limit */
@@ -293,6 +297,8 @@ static uint16_t zns_get_mgmt_zone_slba_idx(FemuCtrl *n, NvmeCmd *c,
     }
 
     *zone_idx = zns_zone_idx(ns, *slba);
+
+    printf("slba 0x%lx, zone idx: %d, n->num_zones %d\n", *slba, *zone_idx, n->num_zones);
     assert(*zone_idx < n->num_zones);
 
     return NVME_SUCCESS;
@@ -767,6 +773,7 @@ static uint16_t zns_zone_mgmt_recv(FemuCtrl *n, NvmeRequest *req)
 /////////////////////////////////////////////////////////////////////////////
 
 
+
 static void bb_init_ctrl_str(FemuCtrl *n)
 {
     // static int fsid_vbb = 0;
@@ -904,7 +911,13 @@ static void bb_flip(FemuCtrl *n, NvmeCmd *cmd)
 static uint16_t bb_nvme_rw(FemuCtrl *n, NvmeNamespace *ns, NvmeCmd *cmd,
                            NvmeRequest *req)
 {
-    return nvme_rw(n, ns, cmd, req);
+    return nvme_rw(n, ns, cmd, req, false);
+}
+
+static uint16_t bb_nvme_rw_append(FemuCtrl *n, NvmeNamespace *ns, NvmeCmd *cmd,
+                           NvmeRequest *req)
+{
+    return nvme_rw(n, ns, cmd, req, true);
 }
 
 static uint16_t bb_io_cmd(FemuCtrl *n, NvmeNamespace *ns, NvmeCmd *cmd,
@@ -914,14 +927,14 @@ static uint16_t bb_io_cmd(FemuCtrl *n, NvmeNamespace *ns, NvmeCmd *cmd,
     case NVME_CMD_READ:
     case NVME_CMD_WRITE:
         return bb_nvme_rw(n, ns, cmd, req);
+    case NVME_CMD_ZONE_APPEND:
+        return bb_nvme_rw_append(n, ns, cmd, req);        
     
     //by HH: added zone IO cmd
     case NVME_CMD_ZONE_MGMT_SEND:
         return zns_zone_mgmt_send(n, req);
     case NVME_CMD_ZONE_MGMT_RECV:
-        return zns_zone_mgmt_recv(n, req);
-    // case NVME_CMD_ZONE_APPEND: need to add!
-    //     return zns_zone_append(n, req);        
+        return zns_zone_mgmt_recv(n, req);       
         
     default:
         printf("invalid opcode %d\n", cmd->opcode);

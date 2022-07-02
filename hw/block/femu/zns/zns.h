@@ -61,7 +61,7 @@ enum NvmeZoneSendAction {
 
 //* by HH
 extern struct slc_region rslc;
-extern struct write_pointer wpslc;
+extern struct w_pointer wpzone;
 extern struct line_mgmt slm;
 extern uint64_t        slc_wp;
 extern uint64_t        TLC_START_LBA;
@@ -101,7 +101,7 @@ inline void set_mapslc_ent(uint16_t zone_index, uint64_t zdslba, uint32_t zdnlb,
 
     tbl += zone_index;
     slc_mapping *map_tbl = tbl->slcmap;
-
+    
     if(tbl->num_slc_data == 0)
     {
         map_tbl += tbl->num_slc_data;

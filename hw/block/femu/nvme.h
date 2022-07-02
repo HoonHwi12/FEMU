@@ -1442,7 +1442,7 @@ void nvme_post_cqes_io(void *opaque);
 void nvme_create_poller(FemuCtrl *n);
 
 /* NVMe I/O */
-uint16_t nvme_rw(FemuCtrl *n, NvmeNamespace *ns, NvmeCmd *cmd, NvmeRequest *req);
+uint16_t nvme_rw(FemuCtrl *n, NvmeNamespace *ns, NvmeCmd *cmd, NvmeRequest *req, bool is_append);
 
 int nvme_register_ocssd12(FemuCtrl *n);
 int nvme_register_ocssd20(FemuCtrl *n);
@@ -1502,12 +1502,12 @@ static inline uint16_t nvme_check_mdts(FemuCtrl *n, size_t len)
     do { printf("[FEMU] Log: " fmt, ## __VA_ARGS__); } while (0)
 
 // by HH: Custom debug log -----------------------------------------------------------------------------
-#define H_DEBUG_LEVEL1
-#define H_DEBUG_LEVEL2
+//#define H_DEBUG_LEVEL1
+//#define H_DEBUG_LEVEL2
 #define H_DEBUG_NAND
-#define H_DEBUG_OVERPROVISION
-#define H_DEBUG_ADMIN
-#define H_DEBUG_READ
+//#define H_DEBUG_OVERPROVISION
+//#define H_DEBUG_ADMIN
+//#define H_DEBUG_READ
 //#define H_DEBUG_WRITE
 
 #ifdef H_DEBUG_LEVEL1

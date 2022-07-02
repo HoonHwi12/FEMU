@@ -9,8 +9,9 @@
 bool H_TEST_LOG = false;
 
 struct slc_region rslc;
-struct write_pointer wpslc;
+struct w_pointer wpzone;
 struct line_mgmt slm;
+
 uint64_t        slc_wp;
 uint64_t        TLC_START_LBA;
 uint64_t        NUM_SLC_BLK;

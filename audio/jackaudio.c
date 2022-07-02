@@ -357,7 +357,6 @@ static size_t qjack_read(HWVoiceIn *hw, void *buf, size_t len)
 {
     QJackIn *ji = (QJackIn *)hw;
     ++ji->c.packets;
-
     if (ji->c.state != QJACK_STATE_RUNNING) {
         qjack_client_recover(&ji->c);
         return len;
