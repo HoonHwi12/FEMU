@@ -113,13 +113,15 @@ static void zns_init_zoned_state(NvmeNamespace *ns)
         // by HH ---------------------------------------------------
         if(i < 1)
         {
-            zone->d.zone_flash_type = SLC;
-            TLC_START_LBA = zone->d.zslba + zone->d.zcap;
-            NUM_SLC_BLK += zone->d.zcap;
+            TLC_START_LBA = 0;
+            zone->d.zone_flash_type = n->flash_type;
+            //zone->d.zone_flash_type = SLC;
+            //TLC_START_LBA = zone->d.zslba + zone->d.zcap;
+            //NUM_SLC_BLK += zone->d.zcap;
 
-            n->namespaces->id_ns.nsze = cpu_to_le64(n->namespaces->id_ns.nsze - n->zone_size);
-            n->namespaces->id_ns.ncap = ns->id_ns.nsze;
-            n->namespaces->id_ns.nuse = ns->id_ns.ncap;            
+            // n->namespaces->id_ns.nsze = cpu_to_le64(n->namespaces->id_ns.nsze - n->zone_size);
+            // n->namespaces->id_ns.ncap = ns->id_ns.nsze;
+            // n->namespaces->id_ns.nuse = ns->id_ns.ncap;            
         }
         else
         {

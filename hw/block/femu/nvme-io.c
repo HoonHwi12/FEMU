@@ -360,10 +360,14 @@ static inline void nvme_copy_cmd(NvmeCmd *dst, NvmeCmd *src)
 #endif
 }
 
+#include "bbssd/ftl.h"
 static void nvme_process_sq_io(void *opaque, int index_poller)
 {
     NvmeSQueue *sq = opaque;
     FemuCtrl *n = sq->ctrl;
+
+    struct ssd *ssd = n->ssd;
+    struct ssdparams *spp = &ssd->sp;
 
     uint16_t status;
     hwaddr addr;
@@ -397,45 +401,45 @@ static void nvme_process_sq_io(void *opaque, int index_poller)
         {
             if(cmd.opcode == NVME_CMD_WRITE)
             {
-                //cmd.cdw10 += TLC_START_LBA & 0xFFFFFFFF;
-                //cmd.cdw11 += TLC_START_LBA >> 32;
-
                 req->slba = cmd.cdw10 | ((uint64_t)cmd.cdw11<<32);
                 req->cmd.cdw10 = req->slba & 0xFFFFFFFF;
                 req->cmd.cdw11 = req->slba >> 32;
 
-                NvmeZone *zone;
+                //NvmeZone *zone;
                 NvmeZone *ori_zone;
-                uint16_t zone_index=0;
+                //uint16_t zone_index=0;
                 uint64_t req_slba = 0;
-
+printf("here1\n");
                 ori_zone = zns_get_zone_by_slba(n->namespaces, req->slba);
                 if (zns_check_zone_write(n, n->namespaces, ori_zone, req->slba, cmd.cdw12, false)) {
-                    femu_err("*********ZONE check Error*********\n");
+                    femu_err("*********nvme sq ZONE check Error*********\n");
                     break;
                 }
 
-                zone = n->zone_array;
-                // move to end of the SLC region
-                while (zone->d.zone_flash_type != SLC || zone->d.zs>>4 == 0xD || zone->d.zs>>4 == 0xE || zone->d.zs>>4 == 0xF )
-                {
-                    zone_index++;
-                    if(zone_index >= n->num_zones)
-                    {
-                        zone = n->zone_array;
-                        break;
-                    }
-                    zone++;
-                }
+                // zone = n->zone_array;
+                // // move to end of the SLC region
+                // while (zone->d.zone_flash_type != SLC || zone->d.zs>>4 == 0xD || zone->d.zs>>4 == 0xE || zone->d.zs>>4 == 0xF )
+                // {
+                //     if(zone_index >= n->num_zones)
+                //     {
+                //         zone = n->zone_array;
+                //         break;
+                //     }
+                //     zone_index++;
+                //     zone++;
+                // }
 
-                if( (slc_wp + cmd.cdw12) > (NUM_SLC_BLK - (2*(n->num_zones))) )
+                if( (slc_wp + cmd.cdw12 +1) >
+                    ( (slm.tt_lines*spp->nchs*spp->luns_per_ch*spp->pgs_per_blk) - (2*(n->num_zones))) )
                 {
                     //* SLC FULL, to Overprovisioning?
                     slctbl *tbl = rslc.mapslc;
                     tbl += ((req->slba)/n->zone_capacity);
                     //slc_mapping *map_tbl = tbl->slcmap;
 
-                    if((slc_wp + cmd.cdw12) < (zone->d.zslba + zone->d.zcap))
+                    //if((slc_wp + cmd.cdw12) < (zone->d.zslba + zone->d.zcap))
+                    if( (slc_wp + cmd.cdw12 +1) <
+                        (slm.tt_lines*spp->nchs*spp->luns_per_ch*spp->pgs_per_blk) )
                     {
                         h_log_provision("Over-provisioning? zone[%ld] SLC Data: %ld, DataRemain=%ld\n",
                             ((req->slba)/n->zone_capacity), tbl->num_slc_data, tbl->num_slc_data%3);
@@ -446,15 +450,17 @@ static void nvme_process_sq_io(void *opaque, int index_poller)
                         }
                         else
                         {
-                            h_log_provision("Over-provision!, zone_slba:0x%lx, zone_cap: 0x%lx\n",
-                                zone->d.zslba, zone->d.zcap);
-                            h_log_provision("wp: 0x%lx, req nlb: 0x%x, cmd nlb: 0x%x, req.slba: 0x%lx\n",
-                                slc_wp, req->cmd.cdw12, cmd.cdw12, req->slba); 
+                            // h_log_provision("Over-provision!, zone_slba:0x%lx, zone_cap: 0x%lx\n",
+                            //     zone->d.zslba, zone->d.zcap);
+                            h_log_provision("Over-provision!, slc_wp + cmd.cdw12:0x%lx, slc cap: 0x%x\n",
+                                slc_wp + cmd.cdw12, slm.tt_lines*spp->nchs*spp->luns_per_ch*spp->pgs_per_blk);
+                            // h_log_provision("wp: 0x%lx, req nlb: 0x%x, cmd nlb: 0x%x, req.slba: 0x%lx\n",
+                            //     slc_wp, req->cmd.cdw12, cmd.cdw12, req->slba); 
 
                             req_slba = req->slba;
 
-                            cmd.cdw10 = slc_wp & 0xFFFFFFFF;
-                            cmd.cdw11 = slc_wp >> 32;
+                            // cmd.cdw10 = slc_wp & 0xFFFFFFFF;
+                            // cmd.cdw11 = slc_wp >> 32;
                             slc_wp += cmd.cdw12+1;                   
 
                             req->cmd.cdw15 = 0x89; //slc flag
@@ -486,6 +492,9 @@ static void nvme_process_sq_io(void *opaque, int index_poller)
                                 }
                             }
 
+                            req->slba = cmd.cdw10 | ((uint64_t)cmd.cdw11<<32);
+                            req->cmd.cdw10 = cmd.cdw10;
+                            req->cmd.cdw11 = cmd.cdw11;
                             set_mapslc_ent( ((req_slba)/n->zone_capacity), req->slba, cmd.cdw12, req_slba);
                         }
                     }
@@ -496,10 +505,11 @@ static void nvme_process_sq_io(void *opaque, int index_poller)
                 }
                 else
                 {
+                    printf("here2\n");
                     req_slba = req->slba;
                     
-                    cmd.cdw10 = slc_wp & 0xFFFFFFFF;
-                    cmd.cdw11 = slc_wp >> 32;
+                    // cmd.cdw10 = slc_wp & 0xFFFFFFFF;
+                    // cmd.cdw11 = slc_wp >> 32;
                     slc_wp += cmd.cdw12+1;
 
                     req->cmd.cdw15 = 0x89; //slc flag
@@ -533,7 +543,7 @@ static void nvme_process_sq_io(void *opaque, int index_poller)
 
                     set_mapslc_ent( ((req_slba)/n->zone_capacity), req->slba, cmd.cdw12, req_slba);
                 }
-
+printf("here3\n");
                 req->slba = cmd.cdw10 | ((uint64_t)cmd.cdw11<<32);
                 req->cmd.cdw10 = cmd.cdw10;
                 req->cmd.cdw11 = cmd.cdw11;
@@ -844,7 +854,7 @@ uint16_t nvme_rw(FemuCtrl *n, NvmeNamespace *ns, NvmeCmd *cmd, NvmeRequest *req,
         femu_err("nvme_rw_check error\n");
         return err;
     }
-        
+
     if (nvme_map_prp(&req->qsg, &req->iov, prp1, prp2, data_size, n))
     {
         nvme_set_error_page(n, req->sq->sqid, cmd->cid, NVME_INVALID_FIELD,
@@ -859,7 +869,7 @@ uint16_t nvme_rw(FemuCtrl *n, NvmeNamespace *ns, NvmeCmd *cmd, NvmeRequest *req,
     req->status = NVME_SUCCESS;
     req->nlb = nlb;
 
-    // by HH: ZNS IO check /////////////////////////////////////////////////
+    // by HH: ZNS IO check ////////////////////////////////////////////////
     zone = zns_get_zone_by_slba(ns, slba);
 
     //if (nvme_check_mdts(n, data_size)) {
@@ -877,30 +887,33 @@ uint16_t nvme_rw(FemuCtrl *n, NvmeNamespace *ns, NvmeCmd *cmd, NvmeRequest *req,
 
     if(req->is_write)
     {
-        if (zns_check_zone_write(n, ns, zone, slba, nlb, is_append)) {
-            femu_err("*********ZONE check Error*********\n");
-            femu_err("slba: 0x%lx, nlb: 0x%x\n", slba, nlb);
-            return NVME_INVALID_FIELD;
-        }
+        if(req->cmd.cdw15 != 0x89)
+        {
+            if (zns_check_zone_write(n, ns, zone, slba, nlb, is_append)) {
+                femu_err("*********nvme rw ZONE check Error*********\n");
+                femu_err("slba: 0x%lx, nlb: 0x%x\n", slba, nlb);
+                return NVME_INVALID_FIELD;
+            }
 
-        if (zns_auto_open_zone(ns, zone)) {
-            femu_err("*********ZONE Open Error*********\n");
-            return NVME_INVALID_FIELD;
-        }
+            if (zns_auto_open_zone(ns, zone)) {
+                femu_err("*********ZONE Open Error*********\n");
+                return NVME_INVALID_FIELD;
+            }
 
-        if (is_append) {
-            slba = zone->w_ptr;
-            data_offset = zns_l2b(ns, slba);
-        }
+            if (is_append) {
+                slba = zone->w_ptr;
+                data_offset = zns_l2b(ns, slba);
+            }
 
-        NvmeZonedResult *res = (NvmeZonedResult *)&req->cqe;
-        res->slba = zns_advance_zone_wp(ns, zone, nlb);
+            NvmeZonedResult *res = (NvmeZonedResult *)&req->cqe;
+            res->slba = zns_advance_zone_wp(ns, zone, nlb);
 
-        //data_offset = zns_l2b(ns, slba);
+            //data_offset = zns_l2b(ns, slba);
 
-        if (zns_map_dptr(n, data_size, req)) {
-            femu_err("hoonhwi:*********ZONE Map DPTR Error*********\n");
-            return NVME_INVALID_FIELD;
+            if (zns_map_dptr(n, data_size, req)) {
+                femu_err("hoonhwi:*********ZONE Map DPTR Error*********\n");
+                return NVME_INVALID_FIELD;
+            }
         }
     }
     else
@@ -923,7 +936,7 @@ uint16_t nvme_rw(FemuCtrl *n, NvmeNamespace *ns, NvmeCmd *cmd, NvmeRequest *req,
         return NVME_DNR;
     }
 
-    if(req->is_write) zns_finalize_zoned_write(ns, req, false);
+    if(req->is_write && req->cmd.cdw15 != 0x89) zns_finalize_zoned_write(ns, req, false);
 
     return NVME_SUCCESS;
 }

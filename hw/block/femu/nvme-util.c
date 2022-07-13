@@ -164,7 +164,7 @@ uint16_t nvme_init_sq(NvmeSQueue *sq, FemuCtrl *n, uint64_t dma_addr, uint16_t
     AddressSpace *as = pci_get_address_space(&n->parent_obj);
     dma_addr_t sqsz = (dma_addr_t)size;
     NvmeCQueue *cq;
-if(H_TEST_LOG) printf("nvme util init sq: cdw10: 0x%x cdw11: 0x%x\n", sq->io_req->cmd.cdw10, sq->io_req->cmd.cdw11);
+
     sq->ctrl = n;
     sq->sqid = sqid;
     sq->size = size;

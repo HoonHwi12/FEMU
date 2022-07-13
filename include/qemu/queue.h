@@ -448,16 +448,16 @@ union {                                                                 \
         (listelm)->field.tqe_circ.tql_prev = &(elm)->field.tqe_circ;         \
 } while (/*CONSTCOND*/0)
 
-#define QTAILQ_REMOVE(head, elm, field) do {                            \
-        if (((elm)->field.tqe_next) != NULL)                            \
-            (elm)->field.tqe_next->field.tqe_circ.tql_prev =            \
-                (elm)->field.tqe_circ.tql_prev;                         \
-        else                                                            \
-            (head)->tqh_circ.tql_prev = (elm)->field.tqe_circ.tql_prev; \
+#define QTAILQ_REMOVE(head, elm, field) do {                              \
+        if (((elm)->field.tqe_next) != NULL)                              \
+            (elm)->field.tqe_next->field.tqe_circ.tql_prev =              \
+                (elm)->field.tqe_circ.tql_prev;                           \
+        else                                                              \
+            (head)->tqh_circ.tql_prev = (elm)->field.tqe_circ.tql_prev;   \
         (elm)->field.tqe_circ.tql_prev->tql_next = (elm)->field.tqe_next; \
-        (elm)->field.tqe_circ.tql_prev = NULL;                          \
-        (elm)->field.tqe_circ.tql_next = NULL;                          \
-        (elm)->field.tqe_next = NULL;                                   \
+        (elm)->field.tqe_circ.tql_prev = NULL;                            \
+        (elm)->field.tqe_circ.tql_next = NULL;                            \
+        (elm)->field.tqe_next = NULL;                                     \
 } while (/*CONSTCOND*/0)
 
 /* remove @left, @right and all elements in between from @head */

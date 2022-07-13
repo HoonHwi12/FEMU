@@ -112,9 +112,9 @@ inline void set_mapslc_ent(uint16_t zone_index, uint64_t zdslba, uint32_t zdnlb,
         map_tbl->isvalid = true;
 
         tbl->num_slc_data++;
-        h_log_writecmd("tbl[%d] num data: %ld\n", zone_index, tbl->num_slc_data);
-        h_log_writecmd("map_tbl[%ld] slba: 0x%lx, nlb: 0x%x, target: 0x%lx, valid: %d\n",
-            tbl->num_slc_data-1, map_tbl->zdslba, map_tbl->zdnlb, map_tbl->target_addr, map_tbl->isvalid);
+        //h_log_writecmd("tbl[%d] num data: %ld\n", zone_index, tbl->num_slc_data);
+        //h_log_writecmd("map_tbl[%ld] slba: 0x%lx, nlb: 0x%x, target: 0x%lx, valid: %d\n",
+        //    tbl->num_slc_data-1, map_tbl->zdslba, map_tbl->zdnlb, map_tbl->target_addr, map_tbl->isvalid);
     }
     else
     {
@@ -122,9 +122,9 @@ inline void set_mapslc_ent(uint16_t zone_index, uint64_t zdslba, uint32_t zdnlb,
         if( (map_tbl->zdslba + map_tbl->zdnlb + 1) == zdslba)
         {
             map_tbl->zdnlb += zdnlb + 1;
-            h_log_writecmd("tbl[%d] num data: %ld\n", zone_index, tbl->num_slc_data);
-            h_log_writecmd("map_tbl[%ld] slba: 0x%lx, nlb: 0x%x, map.target: 0x%lx, this.target_addr: 0x%lx\n",
-                tbl->num_slc_data-1, map_tbl->zdslba, map_tbl->zdnlb, map_tbl->target_addr, target_addr);            
+            //h_log_writecmd("tbl[%d] num data: %ld\n", zone_index, tbl->num_slc_data);
+            //h_log_writecmd("map_tbl[%ld] slba: 0x%lx, nlb: 0x%x, map.target: 0x%lx, this.target_addr: 0x%lx\n",
+            //    tbl->num_slc_data-1, map_tbl->zdslba, map_tbl->zdnlb, map_tbl->target_addr, target_addr);            
         }
         else
         {
@@ -137,9 +137,9 @@ inline void set_mapslc_ent(uint16_t zone_index, uint64_t zdslba, uint32_t zdnlb,
             map_tbl->isvalid = true;
 
             tbl->num_slc_data++;
-            h_log_writecmd("tbl[%d] num data: %ld\n", zone_index, tbl->num_slc_data);
-            h_log_writecmd("map_tbl[%ld] slba: 0x%lx, nlb: 0x%x, target: 0x%lx, valid: %d\n",
-                tbl->num_slc_data-1, map_tbl->zdslba, map_tbl->zdnlb, map_tbl->target_addr, map_tbl->isvalid);            
+            //h_log_writecmd("tbl[%d] num data: %ld\n", zone_index, tbl->num_slc_data);
+            //h_log_writecmd("map_tbl[%ld] slba: 0x%lx, nlb: 0x%x, target: 0x%lx, valid: %d\n",
+            //    tbl->num_slc_data-1, map_tbl->zdslba, map_tbl->zdnlb, map_tbl->target_addr, map_tbl->isvalid);            
         }
     }
 }

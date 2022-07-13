@@ -1023,18 +1023,24 @@ static uint16_t nvme_print_flash_type(FemuCtrl *n, NvmeCmd *cmd)
     NvmeZone *zone;
     zone = n->zone_array;
 
+    struct ssd *ssd = n->ssd;
+    struct ssdparams *spp = &ssd->sp;
+    struct line_mgmt *lm = &ssd->lm;
+
     uint32_t print_range = n->num_zones;
 
     if(cmd->cdw10 != 0x899) print_range = cmd->cdw10;
     if(print_range > n->num_zones) print_range = n->num_zones;
 
     printf("\n");
-    printf("zone size: 0x%lx, zone sizelog2: %d\n",
-        n->zone_size, n->zone_size_log2);
-    printf("TT_ZONE: %d, TLC_START: 0x%lx, NUM_SLC_BLK: 0x%lx, NUM_SLC_LINE: %d\n",
-        n->num_zones, TLC_START_LBA, NUM_SLC_BLK, slm.tt_lines);
-    printf("zone_max_open: %d, zone_max_active: %d, zone_nr_open: %d, zone_nr_active: %d\n",
+    printf("LINE-info   ] ttLine: %d, Linesize: 0x%x pgs, TLCttline: %d, SLCttline: %d, TLC-full/free/victim: %d/%d/%d, SLC-full/free/victim: %d/%d/%d\n",
+        spp->tt_lines, spp->nchs*spp->luns_per_ch*spp->pgs_per_blk, lm->tt_lines, slm.tt_lines, lm->full_line_cnt, lm->free_line_cnt, lm->victim_line_cnt,
+        slm.full_line_cnt, slm.free_line_cnt, slm.victim_line_cnt);
+    printf("SLC-info    ] numZONE: %d, TLC_START: 0x%lx, NUM_SLC_BLK: 0x%lx\n",
+        n->num_zones, TLC_START_LBA, NUM_SLC_BLK);
+    printf("zState-info ] zone_max_open: %d, zone_max_active: %d, zone_nr_open: %d, zone_nr_active: %d\n",
         n->max_open_zones, n->max_active_zones, n->nr_open_zones, n->nr_active_zones);
+    printf("\n");
     printf("%15sslba %3scapacity %4swptr %6sstate %6stype %2sfalsh\n",
     "","","","","","");
     for(int i=0; i < print_range; i++, zone++)
@@ -1080,65 +1086,75 @@ static inline void victim_line_set_pos(void *a, size_t pos)
 static uint16_t nvme_zconfig_control(FemuCtrl *n, NvmeCmd *cmd)
 {
     uint64_t ns_size = n->num_zones * n->zone_size;
+    struct ssd *ssd = n->ssd;
+    struct line_mgmt *lm = &ssd->lm;
+    struct line *line;
+    struct ssdparams *spp = &ssd->sp;
 
     if(cmd->cdw10 != 0x899) n->max_active_zones = cmd->cdw10;
     if(cmd->cdw11 != 0x899) n->max_open_zones = cmd->cdw11;
     if(cmd->cdw12 != 0x899)
     {
-        assert(cmd->cdw12 < (n->num_zones * n->zone_capacity));
-        if(cmd->cdw12 < 2*(n->num_zones))
+        //assert(cmd->cdw12 < (n->num_zones * n->zone_capacity));
+        if(cmd->cdw12 > lm->tt_lines)
         {
-            printf("Number of SLC block must be larger than 0x%x!(2*number_zones)\n", 2*(n->num_zones));
+            printf("invalid argument! argument: %d > total line: %d",
+                cmd->cdw12, lm->tt_lines);
         }
+        // if(cmd->cdw12 < 2*(n->num_zones))
+        // {
+        //     printf("Number of SLC line must be larger than 0x%x!(2*number_zones)\n", 2*(n->num_zones));
+        // }
         else
         {
-            NvmeZone *zone = n->zone_array;
-            uint32_t zone_index = 0;
-            uint64_t last_slc_zone_cap = cmd->cdw12;
+            slm.tt_lines = cmd->cdw12;
+            lm->tt_lines = spp->blks_per_pl - slm.tt_lines;
 
-            while( !(cmd->cdw12 > zone->d.zslba) || !(cmd->cdw12 <= (zone->d.zslba + n->zone_capacity)) )
-            {
-                if(zone->d.zone_flash_type != SLC)
-                {
-                    ns_size -= n->zone_size;
-                    zone->d.zone_flash_type = SLC;
-                }
-                zone->d.zcap = n->zone_capacity;
-                last_slc_zone_cap -= zone->d.zcap;
-                zone++;
-                zone_index++;
-                if(zone_index > n->num_zones)
-                {
-                    femu_err("cmd out-of bounds\n");
-                    return NVME_ZONE_BOUNDARY_ERROR;
-                }
-            }
-            
-            if(zone->d.zone_flash_type != SLC)
-            {
-                ns_size -= n->zone_size;
-                zone->d.zone_flash_type = SLC;
-            }
-            
-            zone->d.zcap = last_slc_zone_cap;
-            NUM_SLC_BLK = (uint64_t)cmd->cdw12;
-            zone++;
-            TLC_START_LBA = zone->d.zslba;
-            while(zone->d.zone_flash_type == SLC)
-            {
-                zone->d.zone_flash_type = n->flash_type;
-                zone->d.zcap = n->zone_capacity;
-                zone++;
-            }
+            // NvmeZone *zone = n->zone_array;
+            // uint32_t zone_index = 0;
+            // uint64_t last_slc_zone_cap = cmd->cdw12;
 
-            h_log_admin("zone[%d] num_slc_block: 0x%lx, TLC_START_LBA: 0x%lx\n", zone_index, NUM_SLC_BLK, TLC_START_LBA);
+            // while( !(cmd->cdw12 > zone->d.zslba) || !(cmd->cdw12 <= (zone->d.zslba + n->zone_capacity)) )
+            // {
+            //     if(zone->d.zone_flash_type != SLC)
+            //     {
+            //         ns_size -= n->zone_size;
+            //         zone->d.zone_flash_type = SLC;
+            //     }
+            //     zone->d.zcap = n->zone_capacity;
+            //     last_slc_zone_cap -= zone->d.zcap;
+            //     zone++;
+            //     zone_index++;
+            //     if(zone_index > n->num_zones)
+            //     {
+            //         femu_err("cmd out-of bounds\n");
+            //         return NVME_ZONE_BOUNDARY_ERROR;
+            //     }
+            // }
+            
+            // if(zone->d.zone_flash_type != SLC)
+            // {
+            //     ns_size -= n->zone_size;
+            //     zone->d.zone_flash_type = SLC;
+            // }
+            
+            // zone->d.zcap = last_slc_zone_cap;
+            // NUM_SLC_BLK = (uint64_t)cmd->cdw12;
+            // zone++;
+            // TLC_START_LBA = zone->d.zslba;
+            // while(zone->d.zone_flash_type == SLC)
+            // {
+            //     zone->d.zone_flash_type = n->flash_type;
+            //     zone->d.zcap = n->zone_capacity;
+            //     zone++;
+            // }
+
+            // h_log_admin("zone[%d] num_slc_block: 0x%lx, TLC_START_LBA: 0x%lx\n", zone_index, NUM_SLC_BLK, TLC_START_LBA);
         }
     }
-    //printf("cdw10: %d, cdw11: %d",cmd->cdw10,cmd->cdw11);
+    printf("cdw10: %d, cdw11: %d, cdw12: %d\n",cmd->cdw10,cmd->cdw11,cmd->cdw12);
 
     //* by HH: ssd init ******************************************
-    struct ssd *ssd = n->ssd;
-    struct ssdparams *spp = &ssd->sp;
     struct ssd_channel *sch;
     struct nand_lun *slun;
     struct nand_plane *spl;
@@ -1149,7 +1165,7 @@ static uint16_t nvme_zconfig_control(FemuCtrl *n, NvmeCmd *cmd)
     //free(ssd->ch);
     //*
     h_log_admin("ssd init start!\n");
-   slctbl *tbl = rslc.mapslc;
+    slctbl *tbl = rslc.mapslc;
     if(tbl->num_slc_data >261600) h_log2("ssd_init_params\n");
     ssd_init_params(n, spp);
 
@@ -1212,8 +1228,6 @@ static uint16_t nvme_zconfig_control(FemuCtrl *n, NvmeCmd *cmd)
 
     /* initialize all the lines */
     h_log_admin("initialize lines\n");
-    struct line_mgmt *lm = &ssd->lm;
-    struct line *line;
 
     QTAILQ_INIT(&slm.free_line_list);
     QTAILQ_INIT(&slm.full_line_list);
@@ -1227,6 +1241,7 @@ static uint16_t nvme_zconfig_control(FemuCtrl *n, NvmeCmd *cmd)
         /* initialize all the lines as free lines */
         QTAILQ_INSERT_TAIL(&slm.free_line_list, line, entry);
         slm.free_line_cnt++;
+        printf("slm id:%d inserted to tail\n", line->id);
     }
     ftl_assert(slm.free_line_cnt == slm.tt_lines);
     slm.victim_line_cnt = 0;
@@ -1240,7 +1255,7 @@ static uint16_t nvme_zconfig_control(FemuCtrl *n, NvmeCmd *cmd)
     QTAILQ_INIT(&lm->full_line_list);
 
     lm->free_line_cnt = 0;
-    for (int i = 0; i < lm->tt_lines; i++)
+    for (int i = slm.tt_lines; i < lm->tt_lines + slm.tt_lines; i++)
     {
         line = &lm->lines[i];
         line->id = i;
@@ -1250,6 +1265,7 @@ static uint16_t nvme_zconfig_control(FemuCtrl *n, NvmeCmd *cmd)
         /* initialize all the lines as free lines */
         QTAILQ_INSERT_TAIL(&lm->free_line_list, line, entry);
         lm->free_line_cnt++;
+        printf("tlc lm id:%d inserted to tail\n", line->id);
     }
     ftl_assert(lm->free_line_cnt == lm->tt_lines);
     lm->victim_line_cnt = 0;
