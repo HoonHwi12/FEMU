@@ -641,7 +641,7 @@ static Property femu_props[] = {
     DEFINE_PROP_UINT16("vid", FemuCtrl, vid, 0x1d1d),
     DEFINE_PROP_UINT16("did", FemuCtrl, did, 0x1f1f),
     DEFINE_PROP_UINT8("femu_mode", FemuCtrl, femu_mode, FEMU_NOSSD_MODE),
-    DEFINE_PROP_UINT8("flash_type", FemuCtrl, flash_type, MLC),
+    DEFINE_PROP_UINT8("flash_type", FemuCtrl, flash_type, TLC),
     DEFINE_PROP_UINT8("lver", FemuCtrl, lver, 0x2),
     DEFINE_PROP_UINT16("lsec_size", FemuCtrl, oc_params.sec_size, 4096),
     DEFINE_PROP_UINT8("lsecs_per_pg", FemuCtrl, oc_params.secs_per_pg, 4),

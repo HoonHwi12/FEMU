@@ -1108,7 +1108,7 @@ static uint16_t nvme_zconfig_control(FemuCtrl *n, NvmeCmd *cmd)
         else
         {
             slm.tt_lines = cmd->cdw12;
-            lm->tt_lines = spp->blks_per_pl - slm.tt_lines + n->num_zones;
+            lm->tt_lines = spp->blks_per_pl - slm.tt_lines;
 
             // NvmeZone *zone = n->zone_array;
             // uint32_t zone_index = 0;
