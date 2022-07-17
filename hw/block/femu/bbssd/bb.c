@@ -99,22 +99,25 @@ static void zns_init_zoned_state(NvmeNamespace *ns)
     zone = n->zone_array;
 
     NUM_SLC_BLK = 0;
+    TLC_START_LBA = 0;
+
     for (i = 0; i < n->num_zones; i++, zone++) {
         if (start + zone_size > capacity) {
             zone_size = capacity - start;
         }
-        zone->d.zt = NVME_ZONE_TYPE_SEQ_WRITE;
         zns_set_zone_state(zone, NVME_ZONE_STATE_EMPTY);
         zone->d.za = 0;
         zone->d.zcap = n->zone_capacity;
         zone->d.zslba = start;
         zone->d.wp = start;
+        zone->d.zone_flash_type = n->flash_type;
 
+        zone->d.zt = NVME_ZONE_TYPE_SEQ_WRITE;
         // by HH ---------------------------------------------------
-        if(i < 1)
+        if(i < n->num_zones-1)
         {
-            TLC_START_LBA = 0;
-            zone->d.zone_flash_type = n->flash_type;
+            //zone->d.zt = NVME_ZONE_TYPE_SEQ_WRITE;
+            
             //zone->d.zone_flash_type = SLC;
             //TLC_START_LBA = zone->d.zslba + zone->d.zcap;
             //NUM_SLC_BLK += zone->d.zcap;
@@ -125,7 +128,7 @@ static void zns_init_zoned_state(NvmeNamespace *ns)
         }
         else
         {
-            zone->d.zone_flash_type = n->flash_type;
+           //zone->d.zt = NVME_ZONE_TYPE_CONVENTIONAL; 
         }
         // ----------------------------------------------------------
 

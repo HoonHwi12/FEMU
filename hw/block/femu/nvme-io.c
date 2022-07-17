@@ -215,12 +215,12 @@ static uint16_t zns_check_zone_write(FemuCtrl *n, NvmeNamespace *ns,
             }
         }
         //by HH: need to fix, currently no wptr check
-        else if (unlikely(slba != zone->w_ptr))
-        {
-            printf(" *********ZONE INVALID WRITE Error*********\n");
-            printf("slba: 0x%lx / wptr: 0x%lx\n", slba, zone->w_ptr);
-            status = NVME_ZONE_INVALID_WRITE;
-        }
+        // else if (unlikely(slba != zone->w_ptr))
+        // {
+        //     printf(" *********ZONE INVALID WRITE Error*********\n");
+        //     printf("slba: 0x%lx / wptr: 0x%lx\n", slba, zone->w_ptr);
+        //     status = NVME_ZONE_INVALID_WRITE;
+        // }
     }
 
     return status;

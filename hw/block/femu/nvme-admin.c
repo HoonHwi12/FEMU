@@ -1316,7 +1316,12 @@ static uint16_t nvme_zconfig_control(FemuCtrl *n, NvmeCmd *cmd)
         {
             zone_size = capacity - start;
         }
+        
         zone->d.zt = NVME_ZONE_TYPE_SEQ_WRITE;
+
+        //if(i < n->num_zones-1) zone->d.zt = NVME_ZONE_TYPE_SEQ_WRITE;
+        //else zone->d.zt = NVME_ZONE_TYPE_CONVENTIONAL;
+
         zns_set_zone_state(zone, NVME_ZONE_STATE_EMPTY);
         zone->d.za = 0;
         // zone->d.zcap = n->zone_capacity;

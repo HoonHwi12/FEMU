@@ -46,6 +46,7 @@ enum NvmeZoneReportType {
 
 enum NvmeZoneType {
     NVME_ZONE_TYPE_RESERVED          = 0x00,
+    NVME_ZONE_TYPE_CONVENTIONAL      = 0X01,
     NVME_ZONE_TYPE_SEQ_WRITE         = 0x02,
 };
 
