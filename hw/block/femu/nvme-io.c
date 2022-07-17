@@ -192,7 +192,7 @@ static uint16_t zns_check_zone_write(FemuCtrl *n, NvmeNamespace *ns,
     uint16_t status;
 
     if (unlikely((slba + nlb) > zns_zone_wr_boundary(zone))) {
-        h_log("*********ZONE NVME_ZONE_BOUNDARY_ERROR Error*********\n");
+        printf("*********ZONE NVME_ZONE_BOUNDARY_ERROR Error*********\n");
         status = NVME_ZONE_BOUNDARY_ERROR;
     } else {
         status = zns_check_zone_state_for_write(zone);
@@ -206,19 +206,19 @@ static uint16_t zns_check_zone_write(FemuCtrl *n, NvmeNamespace *ns,
         if (append)
         {
             if (unlikely(slba != zone->d.zslba)) {
-                h_log("*********ZONE INVALID FIELD Error*********\n");
+                printf("*********ZONE INVALID FIELD Error*********\n");
                 status = NVME_INVALID_FIELD;
             }
             if (zns_l2b(ns, nlb) > (n->page_size << n->zasl)) {
-                h_log("*********ZONE INVALID FIELD Error*********\n");
+                printf("*********ZONE INVALID FIELD Error*********\n");
                 status = NVME_INVALID_FIELD;
             }
         }
         //by HH: need to fix, currently no wptr check
         else if (unlikely(slba != zone->w_ptr))
         {
-            h_log(" *********ZONE INVALID WRITE Error*********\n");
-            h_log("slba: 0x%lx / wptr: 0x%lx\n", slba, zone->w_ptr);
+            printf(" *********ZONE INVALID WRITE Error*********\n");
+            printf("slba: 0x%lx / wptr: 0x%lx\n", slba, zone->w_ptr);
             status = NVME_ZONE_INVALID_WRITE;
         }
     }
@@ -409,7 +409,7 @@ static void nvme_process_sq_io(void *opaque, int index_poller)
                 NvmeZone *ori_zone;
                 //uint16_t zone_index=0;
                 uint64_t req_slba = 0;
-printf("here1\n");
+
                 ori_zone = zns_get_zone_by_slba(n->namespaces, req->slba);
                 if (zns_check_zone_write(n, n->namespaces, ori_zone, req->slba, cmd.cdw12, false)) {
                     femu_err("*********nvme sq ZONE check Error*********\n");
@@ -505,7 +505,6 @@ printf("here1\n");
                 }
                 else
                 {
-                    printf("here2\n");
                     req_slba = req->slba;
                     
                     // cmd.cdw10 = slc_wp & 0xFFFFFFFF;
@@ -543,7 +542,6 @@ printf("here1\n");
 
                     set_mapslc_ent( ((req_slba)/n->zone_capacity), req->slba, cmd.cdw12, req_slba);
                 }
-printf("here3\n");
                 req->slba = cmd.cdw10 | ((uint64_t)cmd.cdw11<<32);
                 req->cmd.cdw10 = cmd.cdw10;
                 req->cmd.cdw11 = cmd.cdw11;

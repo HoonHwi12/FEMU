@@ -1011,7 +1011,7 @@ static uint16_t nvme_change_flash_type(FemuCtrl *n, NvmeCmd *cmd)
 }
 
 
-extern void ssd_init_lines(struct ssd *ssd);
+extern void ssd_init_lines(FemuCtrl *n, struct ssd *ssd);
 extern void ssd_init_write_pointer(FemuCtrl *n, struct ssd *ssd);
 extern void ssd_init_params(FemuCtrl *n, struct ssdparams *spp);
 extern void ssd_init_ch(struct ssd_channel *ch, struct ssdparams *spp);
@@ -1108,7 +1108,7 @@ static uint16_t nvme_zconfig_control(FemuCtrl *n, NvmeCmd *cmd)
         else
         {
             slm.tt_lines = cmd->cdw12;
-            lm->tt_lines = spp->blks_per_pl - slm.tt_lines;
+            lm->tt_lines = spp->blks_per_pl - slm.tt_lines + n->num_zones;
 
             // NvmeZone *zone = n->zone_array;
             // uint32_t zone_index = 0;
