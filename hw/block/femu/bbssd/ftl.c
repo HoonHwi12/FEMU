@@ -240,6 +240,7 @@ static struct line *get_next_free_line(struct ssd *ssd)
     struct line *curline = NULL;
 
     curline = QTAILQ_FIRST(&lm->free_line_list);
+   // printf("TLC new line id: %d\n", curline->id);
 
     if (!curline) {
         ftl_err("No free lines left in [%s] !!!!\n", ssd->ssdname);
@@ -632,13 +633,9 @@ static uint64_t ssd_advance_status(struct ssd *ssd, struct ppa *ppa, struct nand
     switch (c) {
     case NAND_READ:
         /* read: perform NAND cmd first */
-        printf("debug] read start\n");
-        printf("read ch%d lun%d pl%d blk%d pg%d\n",
-            ppa->g.ch, ppa->g.lun, ppa->g.pl, ppa->g.blk, ppa->g.pg);
-        printf("lun->next_lun_avail_time: %ld, cmd_stime: %ld\n",lun->next_lun_avail_time, cmd_stime);
         nand_stime = (lun->next_lun_avail_time < cmd_stime) ? cmd_stime : \
                      lun->next_lun_avail_time;
-printf("debug] here1 type %d\n", flash_type);
+
         // lun->next_lun_avail_time = nand_stime + spp->pg_rd_lat;
         //* by HH
         if(flash_type == SLC) lun->next_lun_avail_time = nand_stime + spp->pg_slc_rd_lat;
@@ -646,9 +643,7 @@ printf("debug] here1 type %d\n", flash_type);
         else if(flash_type == TLC) lun->next_lun_avail_time = nand_stime + spp->pg_tlc_rd_lat;
         else if(flash_type == QLC) lun->next_lun_avail_time = nand_stime + spp->pg_qlc_rd_lat;
         //*******************
-        printf("debug] here2\n");
         lat = lun->next_lun_avail_time - cmd_stime;
-        printf("debug] return lat\n");
 #if 0
         lun->next_lun_avail_time = nand_stime + spp->pg_rd_lat;
 
@@ -837,17 +832,19 @@ static void mark_page_valid(struct ssd *ssd, struct ppa *ppa, bool debug, uint32
     struct nand_block *blk = NULL;
     struct nand_page *pg = NULL;
     struct line *line;
-
+//printf("Get pg!\n");
     /* update page status */
     pg = get_pg(ssd, ppa);
     ftl_assert(pg->status == PG_FREE);
     pg->status = PG_VALID;
 
+//printf("Get blk!\n");
     /* update corresponding block status */
     blk = get_blk(ssd, ppa);
     ftl_assert(blk->vpc >= 0 && blk->vpc < ssd->sp.pgs_per_blk);
     blk->vpc++;
 
+//printf("Get line!\n");
     /* update corresponding line status */
     line = get_line(ssd, ppa);
     ftl_assert(line->vpc >= 0 && line->vpc < ssd->sp.pgs_per_line);
@@ -865,11 +862,14 @@ static void mark_slc_page_valid(struct ssd *ssd, struct ppa *ppa)
     struct nand_block *blk = NULL;
     struct nand_page *pg = NULL;
     struct line *line;
+    //struct write_pointer *wpp = &ssd->wp;
 
     /* update page status */
     pg = get_pg(ssd, ppa);
     ftl_assert(pg->status == PG_FREE);
     pg->status = PG_VALID;
+//    printf("mark slc pg valid: ch%d lun%d pl%d blk%d pg%d\n",
+        //ppa->g.ch, ppa->g.lun, ppa->g.pl, ppa->g.blk, ppa->g.pg);
 
     /* update corresponding block status */
     blk = get_blk(ssd, ppa);
@@ -1066,20 +1066,23 @@ static int do_slc_gc(FemuCtrl *n, struct ssd *ssd)
     struct write_pointer *wpp;
     struct ssdparams *spp = &ssd->sp;
     struct nand_page *pg_iter = NULL;
+    struct nand_block *blk;
+    struct write_pointer *swpp = &ssd->wp;
+
+    uint64_t lba;
+    int len;
+    uint64_t start_lpn;
+    uint64_t end_lpn;
 
     slctbl *tbl;
     slc_mapping *map_tbl;
 
     uint64_t lpn;
-    uint64_t current_line;
+    uint64_t lbn;
+    //uint64_t current_line;
     //int num_gc_line = slm.full_line_cnt + slm.victim_line_cnt;
     int cnt = 0;
     int ch, lun, pg;
-
-    uint64_t start_line;
-    uint64_t end_line;
-
-    int temp_debug = -1;
 
     for(int i=0; i < n->num_zones; i++)
     {
@@ -1095,138 +1098,170 @@ static int do_slc_gc(FemuCtrl *n, struct ssd *ssd)
             map_tbl += tbl->num_slc_data - 1;
             tbl->num_slc_data--;
 
+            lba = map_tbl->zdslba;
+            len = map_tbl->zdnlb;
+            start_lpn = lba / spp->secs_per_pg;
+            end_lpn = (lba + len + 1) / spp->secs_per_pg;
+
             h_log_gc("zone[#%d] #data: %ld, length: %d\n",
                 i, tbl->num_slc_data, map_tbl->zdnlb);
 
-            start_line = map_tbl->zdslba / spp->pgs_per_blk / spp->nchs / spp->luns_per_ch;
-            end_line = (map_tbl->zdslba + map_tbl->zdnlb) / spp->pgs_per_blk / spp->nchs / spp->luns_per_ch;
-
-            for(current_line = start_line; current_line < end_line; current_line++)
+            for (lpn = start_lpn; lpn <= end_lpn; lpn++)
             {
-                lpn = current_line * spp->nchs * spp->luns_per_ch * spp->pgs_per_blk * spp->pgs_per_blk;
+                lbn = lpn * spp->secs_per_pg / spp->secs_per_blk;
                 //ppa = get_maptbl_ent(ssd, lpn);
-                pba = get_maptbl_blk(ssd, lpn/spp->pgs_per_blk);
-                // ch = ppa.g.ch;
-                // lun = ppa.g.lun;
-                // pg = ppa.g.pg;
+                pba = get_maptbl_blk(ssd, lbn);
 
-                ppa.g.ch = pba.g.ch;
-                ppa.g.blk = pba.g.blk;
-                ppa.g.lun = pba.g.lun;
+                pg = (lpn % (spp->nchs * spp->luns_per_ch * spp->pgs_per_blk)) / (spp->nchs * spp->luns_per_ch);
+                ch = lpn % 2;
+                lun = (lpn % (spp->nchs * spp->luns_per_ch)) / spp->nchs;
+
+                ppa.g.ch = ch;
+                ppa.g.lun = lun;
                 ppa.g.pl = pba.g.pl;
-                
-                for(pg = 0; pg < spp->pgs_per_blk; pg++)
+                ppa.g.blk = pba.g.blk;
+                ppa.g.pg = pg;
+                h_log_gc("SLC GC: lbn: %ld, ch%d lun%d pl%d blk%d pg%d\n", lbn, ppa.g.ch, ppa.g.lun, ppa.g.pl, ppa.g.blk, ppa.g.pg);
+
+                pg_iter = get_pg(ssd, &ppa);
+                if (pg_iter->status == PG_VALID)
                 {
-                    ppa.g.pg = pg;
+                    //* GC read
+                    gcr.type = GC_IO;
+                    gcr.cmd = NAND_READ;
+                    gcr.stime = 0;
 
-                    if(ppa.g.blk != temp_debug)
+                    ssd_advance_status(ssd, &ppa, &gcr, SLC);
+
+                    //* GC write
+                    ftl_assert(valid_lpn(ssd, lpn));
+
+                    new_ppa.g.blk = wpp->blk;
+                    new_ppa.g.ch = wpp->ch;
+                    new_ppa.g.lun = wpp->lun;
+                    new_ppa.g.pl = wpp->pl;
+                    new_ppa.g.pg = wpp->pg;
+                    h_log_gc("TLC GC: line%d, ch%d lun%d pl%d blk%d pg%d\n", wpp->curline->id, new_ppa.g.ch, new_ppa.g.lun, new_ppa.g.pl, new_ppa.g.blk, new_ppa.g.pg);
+
+                    new_pba.g.blk = new_ppa.g.blk;
+                    new_pba.g.ch = new_ppa.g.ch;
+                    new_pba.g.lun = new_ppa.g.lun;
+                    new_pba.g.pl = new_ppa.g.pl;
+
+                    blk = get_blk(ssd, &ppa);
+                    if(blk->ipc == 0 && blk->vpc ==0)
                     {
-                        temp_debug = ppa.g.blk;
-                        h_log_gc("start_line:%ld end_line: %ld, lpn: %ld, selected GC line id: %d\n",
-                            start_line, end_line, lpn, ppa.g.blk);
+                        h_log_gc("unmapped blk! set maptbl\n");
+                        set_maptbl_blk(ssd, (map_tbl->target_addr / spp->secs_per_blk), &new_pba);
+                        set_rmap_blk(ssd, (map_tbl->target_addr / spp->secs_per_blk), &new_pba);
                     }
 
-                    pg_iter = get_pg(ssd, &ppa);
-                    if (pg_iter->status == PG_VALID)
-                    {
-                        if(i >5) h_log_gc("GC read for ch%d lun%d pg%d\n", ppa.g.ch, ppa.g.lun, ppa.g.pg);
-                        //* GC read
-                        gcr.type = GC_IO;
-                        gcr.cmd = NAND_READ;
-                        gcr.stime = 0;
+                    /* update maptbl */
+                    //set_maptbl_ent(ssd, (map_tbl->target_addr * spp->pgs_per_blk) + (lpn - start_line * spp->nchs * spp->luns_per_ch * spp->pgs_per_blk * spp->pgs_per_blk), &new_ppa);
 
-                        ssd_advance_status(ssd, &ppa, &gcr, SLC);
+                    /* update rmap */
+                    //set_rmap_ent(ssd, (map_tbl->target_addr * spp->pgs_per_blk) + (lpn - start_line * spp->nchs * spp->luns_per_ch * spp->pgs_per_blk * spp->pgs_per_blk), &new_ppa);
+                    h_log_gc("mark TLC page valid\n");
+                    mark_page_valid(ssd, &new_ppa, false, i);
 
-                        //* GC write
-                        if(i >5) h_log_gc("GC write for ch%d lun%d pg%d\n", ppa.g.ch, ppa.g.lun, ppa.g.pg);
-                        ftl_assert(valid_lpn(ssd, lpn));
+                    h_log_gc("advance write pointer\n");
+                    ssd_advance_write_pointer(ssd, i, false);
 
-                        new_ppa.g.blk = wpp->blk;
-                        new_ppa.g.ch = wpp->ch;
-                        new_ppa.g.lun = wpp->lun;
-                        new_ppa.g.pl = wpp->pl;
+                    gcw.type = GC_IO;
+                    gcw.cmd = NAND_WRITE;
+                    gcw.stime = 0;
 
-                        new_pba.g.blk = new_ppa.g.blk;
-                        new_pba.g.ch = new_ppa.g.ch;
-                        new_pba.g.lun = new_ppa.g.lun;
-                        new_pba.g.pl = new_ppa.g.pl;
-                        if(new_pba.pba == UNMAPPED_PBA)
-                        {
-                            set_maptbl_blk(ssd, (map_tbl->target_addr / spp->secs_per_blk), &new_pba);
-                            set_rmap_blk(ssd, (map_tbl->target_addr / spp->secs_per_blk), &new_pba);
-                        }
+                    h_log_gc("advance status\n");
+                    ssd_advance_status(ssd, &new_ppa, &gcw, TLC);
 
-                        /* update maptbl */
-                        //set_maptbl_ent(ssd, (map_tbl->target_addr * spp->pgs_per_blk) + (lpn - start_line * spp->nchs * spp->luns_per_ch * spp->pgs_per_blk * spp->pgs_per_blk), &new_ppa);
-
-                        /* update rmap */
-                        //set_rmap_ent(ssd, (map_tbl->target_addr * spp->pgs_per_blk) + (lpn - start_line * spp->nchs * spp->luns_per_ch * spp->pgs_per_blk * spp->pgs_per_blk), &new_ppa);
-                        mark_page_valid(ssd, &new_ppa, false, i);
-
-                        ssd_advance_write_pointer(ssd, i, false);
-
-                        gcw.type = GC_IO;
-                        gcw.cmd = NAND_WRITE;
-                        gcw.stime = 0;
-
-                        ssd_advance_status(ssd, &new_ppa, &gcw, TLC);
-
-                        /* advance per-ch gc_endtime as well */
-                        new_lun = get_lun(ssd, &new_ppa);
-                        new_lun->gc_endtime = new_lun->next_lun_avail_time;
-                        
-                        pg_iter->status  = PG_FREE;
-                        cnt++;
-                    }
+                    /* advance per-ch gc_endtime as well */
+                    new_lun = get_lun(ssd, &new_ppa);
+                    new_lun->gc_endtime = new_lun->next_lun_avail_time;
+                    
+                    pg_iter->status  = PG_FREE;
+                    cnt++;
                 } // for all pg in a block
+                else
+                {
+                    printf("slc pg not valid: ch%d lun%d pl%d blk%d pg%d\n",
+                        ppa.g.ch, ppa.g.lun, ppa.g.pl, ppa.g.blk, ppa.g.pg);
+                }
             } // for all nlb in a mapping
         } // for all mapping in zones
     } // for all zones
 
 
     //* GC erase
-    if(slm.victim_line_cnt > 0)
+    while(1)
     {
-        gc_line = pqueue_peek(slm.victim_line_pq);
-        if(!gc_line) printf("no victim line selected!! err\n");
-        pqueue_pop(slm.victim_line_pq);
-        gc_line->pos = 0;
-        slm.victim_line_cnt--;
-    }
-    else if(slm.full_line_cnt > 0)
-    {
-        gc_line = QTAILQ_FIRST(&slm.full_line_list);
-        if(!gc_line) printf("no full line selected!! err\n");
-        QTAILQ_REMOVE(&slm.full_line_list, gc_line,entry);
-        slm.full_line_cnt--;
-    }
-
-    if (!gc_line) {
-        printf("no GC line selected!! err\n");
-        return -1;
-    }
-    h_log_gc("GC erase for blk%d\n", ppa.g.blk);
-    ppa.g.blk = gc_line->id;
-
-    /* copy back valid data */
-    for (ch = 0; ch < spp->nchs; ch++) {
-        for (lun = 0; lun < spp->luns_per_ch; lun++) {
-            ppa.g.ch = ch;
-            ppa.g.lun = lun;
-            ppa.g.pl = 0;
-            lunp = get_lun(ssd, &ppa);
-            mark_block_free(ssd, &ppa);
-
-            gce.type = GC_IO;
-            gce.cmd = NAND_ERASE;
-            gce.stime = 0;
-            ssd_advance_status(ssd, &ppa, &gce, TLC);
-
-            lunp->gc_endtime = lunp->next_lun_avail_time;
+        if(slm.victim_line_cnt > 0)
+        {
+            gc_line = pqueue_peek(slm.victim_line_pq);
+            if(!gc_line) printf("no victim line selected!! err\n");
+            pqueue_pop(slm.victim_line_pq);
+            gc_line->pos = 0;
+            slm.victim_line_cnt--;
         }
+        else if(slm.full_line_cnt > 0)
+        {
+            gc_line = QTAILQ_FIRST(&slm.full_line_list);
+            if(!gc_line) printf("no full line selected!! err\n");
+            QTAILQ_REMOVE(&slm.full_line_list, gc_line,entry);
+            slm.full_line_cnt--;
+        }
+        else if(swpp->curline->ipc > 0 || swpp->curline->vpc > 0)
+        {
+            gc_line = swpp->curline;
+            if(!gc_line) printf("no full line selected!! err\n");
+
+            swpp->ch = 0;
+            swpp->lun = 0;
+            swpp->pl = 0;
+            
+            swpp->curline = QTAILQ_FIRST(&slm.free_line_list);
+            QTAILQ_REMOVE(&slm.free_line_list, swpp->curline, entry);
+
+            swpp->blk = swpp->curline->id;
+            swpp->pg = 0;
+        }
+        else
+        {
+            //printf("No gc line swpp id%d ipc%d vpc%d\n", swpp->curline->id, swpp->curline->ipc, swpp->curline->vpc);
+            break;
+        }
+
+        if (!gc_line) {
+            printf("no GC line selected!! err\n");
+            slc_wp = 0;
+            return -1;
+        }
+
+        ppa.g.blk = gc_line->id;
+        h_log_gc("GC erase for blk%d\n", ppa.g.blk);
+
+        /* copy back valid data */
+        for (ch = 0; ch < spp->nchs; ch++) {
+            for (lun = 0; lun < spp->luns_per_ch; lun++) {
+                ppa.g.ch = ch;
+                ppa.g.lun = lun;
+                ppa.g.pl = 0;
+                lunp = get_lun(ssd, &ppa);
+                mark_block_free(ssd, &ppa);
+
+                gce.type = GC_IO;
+                gce.cmd = NAND_ERASE;
+                gce.stime = 0;
+                ssd_advance_status(ssd, &ppa, &gce, TLC);
+
+                lunp->gc_endtime = lunp->next_lun_avail_time;
+            }
+        }
+        /* update line status */
+        gc_line->ipc = 0;
+        gc_line->vpc = 0;
+        QTAILQ_INSERT_TAIL(&slm.free_line_list, gc_line, entry);
+        slm.free_line_cnt++;
     }
-    /* update line status */
-    mark_line_free(ssd, &ppa);
 
     slc_wp = 0;
 
@@ -1261,7 +1296,7 @@ static uint64_t ssd_read(struct ssd *ssd, NvmeRequest *req)
     struct pba pba;
     uint64_t start_lpn = lba / spp->secs_per_pg;
     uint64_t end_lpn = (lba + nsecs -1) / spp->secs_per_pg;
-    uint64_t pg;
+    uint64_t ch, lun, pg;
     uint64_t lpn;
     uint64_t lbn;
     uint64_t sublat, maxlat = 0;
@@ -1278,21 +1313,17 @@ static uint64_t ssd_read(struct ssd *ssd, NvmeRequest *req)
         //ppa = get_maptbl_ent(ssd, lba / spp->secs_per_pg);
 //printf("debug] get_maptbl_blk lba:0x%lx, lbn:%ld, nsecs: %d\n", lba, lbn, nsecs);
         pba = get_maptbl_blk(ssd, lbn);
-        pg = lpn % spp->pgs_per_blk;
 
-//printf("getmaptbl ppa ch%d lun%d pl%d blk%d\n",
-//            ppa.g.ch, ppa.g.lun, ppa.g.pl, ppa.g.blk);
+        pg = (lpn % (spp->nchs * spp->luns_per_ch * spp->pgs_per_blk)) / (spp->nchs * spp->luns_per_ch);
+        ch = lpn % 2;
+        lun = (lpn % (spp->nchs * spp->luns_per_ch)) / spp->nchs;
 
-        //printf("getmaptbl pba ch%d lun%d pl%d blk%d\n",
- //           pba.g.ch, pba.g.lun, pba.g.pl, pba.g.blk);
-
-//printf("debug] get_maptbl_blk finish\n");
-        ppa.g.ch = pba.g.ch;
-        ppa.g.lun = pba.g.lun;
+        ppa.g.ch = ch;
+        ppa.g.lun = lun;
         ppa.g.pl = pba.g.pl;
         ppa.g.blk = pba.g.blk;
-        ppa.g.sec = pba.g.sec;
         ppa.g.pg = pg;
+        ppa.g.sec = pba.g.sec;
 
         if (!mapped_ppa(&ppa) || !valid_ppa(ssd, &ppa)) {
             //printf("%s,lpn(%" PRId64 ") not mapped to valid ppa\n", ssd->ssdname, lpn);
@@ -1324,11 +1355,12 @@ static uint64_t ssd_write(FemuCtrl *n, struct ssd *ssd, NvmeRequest *req)
     struct pba pba;
     uint64_t lpn;
     uint64_t lbn;
-    uint64_t pg;
+    uint64_t ch, lun, pg;
     uint64_t curlat = 0, maxlat = 0;
     int r;
     NvmeZone *zone = n->zone_array;
     uint32_t zone_index = lba / zone->d.zcap;
+    struct nand_block *blk;
     //NvmeZone *next_zone = n->zone_array;
     //next_zone++;
 
@@ -1356,10 +1388,13 @@ static uint64_t ssd_write(FemuCtrl *n, struct ssd *ssd, NvmeRequest *req)
         //ppa = get_maptbl_ent(ssd, lpn);
         lbn = lpn * spp->secs_per_pg / spp->secs_per_blk;
         pba = get_maptbl_blk(ssd, lbn);
-        pg = lpn % spp->pgs_per_blk;
+        
+        pg = (lpn % (spp->nchs * spp->luns_per_ch * spp->pgs_per_blk)) / (spp->nchs * spp->luns_per_ch);
+        ch = lpn % 2;
+        lun = (lpn % (spp->nchs * spp->luns_per_ch)) / spp->nchs;
 
-        ppa.g.ch = pba.g.ch;
-        ppa.g.lun = pba.g.lun;
+        ppa.g.ch = ch;
+        ppa.g.lun = lun;
         ppa.g.pl = pba.g.pl;
         ppa.g.blk = pba.g.blk;
         ppa.g.pg = pg;
@@ -1388,7 +1423,9 @@ static uint64_t ssd_write(FemuCtrl *n, struct ssd *ssd, NvmeRequest *req)
         pba.g.ch = ppa.g.ch;
         pba.g.lun = ppa.g.lun;
         pba.g.pl = ppa.g.pl;
-        if(pba.pba == UNMAPPED_PBA)
+
+        blk = get_blk(ssd, &ppa);
+        if(blk->ipc == 0 && blk->vpc ==0)
         {
             set_maptbl_blk(ssd, lbn, &pba);
             set_rmap_blk(ssd, lbn, &pba);
@@ -1439,8 +1476,9 @@ static uint64_t slc_write(struct ssd *ssd, NvmeRequest *req)
     struct pba pba;
     uint64_t lpn;
     uint64_t lbn;
-    uint64_t pg;
+    uint64_t ch, lun, pg;
     uint64_t curlat = 0, maxlat = 0;
+    struct nand_block *blk;
 
     if (end_lpn >= spp->tt_pgs) {
         //ftl_err("start_lpn=%"PRIu64",tt_pgs=%d\n", start_lpn, ssd->sp.tt_pgs);
@@ -1451,10 +1489,13 @@ static uint64_t slc_write(struct ssd *ssd, NvmeRequest *req)
         //ppa = get_maptbl_ent(ssd, lpn);
         lbn = lpn * spp->secs_per_pg / spp->secs_per_blk;
         pba = get_maptbl_blk(ssd, lbn);
-        pg = lpn % spp->pgs_per_blk;
+        
+        pg = (lpn % (spp->nchs * spp->luns_per_ch * spp->pgs_per_blk)) / (spp->nchs * spp->luns_per_ch);
+        ch = lpn % 2;
+        lun = (lpn % (spp->nchs * spp->luns_per_ch)) / spp->nchs;
 
-        ppa.g.ch = pba.g.ch;
-        ppa.g.lun = pba.g.lun;
+        ppa.g.ch = ch;
+        ppa.g.lun = lun;
         ppa.g.pl = pba.g.pl;
         ppa.g.blk = pba.g.blk;
         ppa.g.pg = pg;
@@ -1471,13 +1512,16 @@ static uint64_t slc_write(struct ssd *ssd, NvmeRequest *req)
 
         /* new write */
         ppa = get_new_page(ssd);
+        //printf("slc write ch%d lun%d pl%d blk%d pg:%d\n", ppa.g.ch, ppa.g.lun, ppa.g.pl, ppa.g.blk, ppa.g.pg);
 
         pba.g.blk = ppa.g.blk;
         pba.g.ch = ppa.g.ch;
         pba.g.lun = ppa.g.lun;
         pba.g.pl = ppa.g.pl;
 
-        if(pba.pba == UNMAPPED_PBA)
+        blk = get_blk(ssd, &ppa);
+        
+        if(blk->ipc == 0 && blk->vpc ==0)
         {
             set_maptbl_blk(ssd, lbn, &pba);
             set_rmap_blk(ssd, lbn, &pba);
@@ -1490,6 +1534,8 @@ static uint64_t slc_write(struct ssd *ssd, NvmeRequest *req)
         //set_rmap_ent(ssd, lpn, &ppa);
 
         mark_slc_page_valid(ssd, &ppa);
+
+        //printf("slc write: curline id%d ipc%d vpc%d\n", wpp->curline->id, wpp->curline->ipc, wpp->curline->vpc);
 
         /* need to advance the write pointer here */
         check_addr(wpp->ch, spp->nchs);
@@ -1659,8 +1705,11 @@ static void *ftl_thread(void *arg)
             }
         }
 
-        if( (slc_wp*2 > slm.tt_lines*spp->pgs_per_blk*spp->nchs*spp->luns_per_ch)
-            && ((float)(clock() - idle_timer)/CLOCKS_PER_SEC > 1) ) 
+        //if( (slc_wp*2 > slm.tt_lines*spp->pgs_per_blk*spp->nchs*spp->luns_per_ch)
+            //&& ((float)(clock() - idle_timer)/CLOCKS_PER_SEC > 1) ) 
+            if(slc_wp > 0
+                && (float)((clock() - idle_timer)/CLOCKS_PER_SEC) > 1
+                && spp->pgs_per_blk > 0)
         {
             h_log_gc("gc start\n");
             do_slc_gc(n, ssd);
