@@ -71,6 +71,12 @@ extern uint64_t        NUM_SLC_BLK;
 typedef struct slc_mapping {
     uint64_t zdslba;
     uint32_t zdnlb;
+
+    // uint32_t zdline;
+    // uint32_t zdch;
+    // uint32_t zdlun;
+    // uint32_t zdpg;
+
     uint64_t target_addr;
     bool isvalid;
 } slc_mapping;
@@ -95,10 +101,12 @@ typedef struct slc_region {
 //     return rslc.mapslc[slc_index];
 // }
 
-inline void set_mapslc_ent(uint16_t zone_index, uint64_t zdslba, uint32_t zdnlb, uint64_t target_addr)
+#include "../bbssd/ftl.h"
+inline void set_mapslc_ent(struct ssd *ssd, uint16_t zone_index, uint64_t zdslba, uint32_t zdnlb, uint64_t target_addr)
 {
     slctbl *tbl = rslc.mapslc;
-    // {zone_index, zslba, znlb}
+    //* HH: nand mapping
+    //struct ppa ppa = get_new_page(ssd);
 
     tbl += zone_index;
     slc_mapping *map_tbl = tbl->slcmap;
@@ -112,6 +120,11 @@ inline void set_mapslc_ent(uint16_t zone_index, uint64_t zdslba, uint32_t zdnlb,
         map_tbl->target_addr = target_addr;
         map_tbl->isvalid = true;
 
+        // map_tbl->zdline = ppa.g.blk;
+        // map_tbl->zdch = ppa.g.ch;
+        // map_tbl->zdlun = ppa.g.lun;
+        // map_tbl->zdpg = ppa.g.pg;
+        
         tbl->num_slc_data++;
         //h_log_writecmd("tbl[%d] num data: %ld\n", zone_index, tbl->num_slc_data);
         //h_log_writecmd("map_tbl[%ld] slba: 0x%lx, nlb: 0x%x, target: 0x%lx, valid: %d\n",
@@ -136,6 +149,11 @@ inline void set_mapslc_ent(uint16_t zone_index, uint64_t zdslba, uint32_t zdnlb,
             map_tbl->zdnlb = zdnlb;  
             map_tbl->target_addr = target_addr;
             map_tbl->isvalid = true;
+            
+            // map_tbl->zdline = ppa.g.blk;
+            // map_tbl->zdch = ppa.g.ch;
+            // map_tbl->zdlun = ppa.g.lun;
+            // map_tbl->zdpg = ppa.g.pg;       
 
             tbl->num_slc_data++;
             //h_log_writecmd("tbl[%d] num data: %ld\n", zone_index, tbl->num_slc_data);
@@ -143,7 +161,11 @@ inline void set_mapslc_ent(uint16_t zone_index, uint64_t zdslba, uint32_t zdnlb,
             //    tbl->num_slc_data-1, map_tbl->zdslba, map_tbl->zdnlb, map_tbl->target_addr, map_tbl->isvalid);            
         }
     }
+
+    if(map_tbl->zdnlb % 0x10000 == 0) h_log_writecmd("zone[#%d] #data[%ld] slba: 0x%lx, nlb: 0x%x, target: 0x%lx, valid: %d\n",
+       zone_index, tbl->num_slc_data-1, map_tbl->zdslba, map_tbl->zdnlb, map_tbl->target_addr, map_tbl->isvalid);            
 }
+
 
 typedef struct QEMU_PACKED NvmeZoneDescr {
     uint8_t     zt;

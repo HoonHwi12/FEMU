@@ -167,15 +167,15 @@ static uint16_t zns_check_zone_state_for_write(NvmeZone *zone)
         status = NVME_SUCCESS;
         break;
     case NVME_ZONE_STATE_FULL:
-        h_log("*********ZONE STATUS FULL********\n");
+        printf("*********ZONE STATUS FULL********\n");
         status = NVME_ZONE_FULL;
         break;
     case NVME_ZONE_STATE_OFFLINE:
-        h_log("*********ZONE OFFLINE********\n");
+        printf("*********ZONE OFFLINE********\n");
         status = NVME_ZONE_OFFLINE;
         break;
     case NVME_ZONE_STATE_READ_ONLY:
-        h_log("*********ZONE READ ONLY********\n");
+        printf("*********ZONE READ ONLY********\n");
         status = NVME_ZONE_READ_ONLY;
         break;
     default:
@@ -199,7 +199,9 @@ static uint16_t zns_check_zone_write(FemuCtrl *n, NvmeNamespace *ns,
     }
 
     if (status != NVME_SUCCESS)
-    { }
+    { 
+        printf("slba: 0x%lx, nlb: 0x%x\n", slba, nlb);
+    }
     else
     {
         assert(zns_wp_is_valid(zone));
@@ -429,8 +431,8 @@ static void nvme_process_sq_io(void *opaque, int index_poller)
             //     zone++;
             // }
 
-            if( (slc_wp + cmd.cdw12 +1) >
-                ( (slm.tt_lines*spp->nchs*spp->luns_per_ch*spp->pgs_per_blk) - (2*(n->num_zones))) )
+            if( (slc_wp + cmd.cdw12 + 1) >
+                (slm.tt_lines*spp->pgs_per_blk*spp->nchs*spp->luns_per_ch) - (2*(n->num_zones)) )
             {
                 //* SLC FULL, to Overprovisioning?
                 slctbl *tbl = rslc.mapslc;
@@ -438,8 +440,8 @@ static void nvme_process_sq_io(void *opaque, int index_poller)
                 //slc_mapping *map_tbl = tbl->slcmap;
 
                 //if((slc_wp + cmd.cdw12) < (zone->d.zslba + zone->d.zcap))
-                if( (slc_wp + cmd.cdw12 +1) <
-                    (slm.tt_lines*spp->nchs*spp->luns_per_ch*spp->pgs_per_blk) )
+                if( (slc_wp + cmd.cdw12 + 1) <
+                    slm.tt_lines*spp->pgs_per_blk*spp->nchs*spp->luns_per_ch )
                 {
                     h_log_provision("Over-provisioning? zone[%ld] SLC Data: %ld, DataRemain=%ld\n",
                         ((req->slba)/n->zone_capacity), tbl->num_slc_data, tbl->num_slc_data%3);
@@ -495,7 +497,7 @@ static void nvme_process_sq_io(void *opaque, int index_poller)
                         req->slba = cmd.cdw10 | ((uint64_t)cmd.cdw11<<32);
                         req->cmd.cdw10 = cmd.cdw10;
                         req->cmd.cdw11 = cmd.cdw11;
-                        set_mapslc_ent( ((req_slba)/n->zone_capacity), req->slba, cmd.cdw12, req_slba);
+                        set_mapslc_ent(ssd, ((req_slba)/n->zone_capacity), req->slba, cmd.cdw12, req_slba);
                     }
                 }
                 else
@@ -540,7 +542,7 @@ static void nvme_process_sq_io(void *opaque, int index_poller)
                     }
                 }
 
-                set_mapslc_ent( ((req_slba)/n->zone_capacity), req->slba, cmd.cdw12, req_slba);
+                set_mapslc_ent(ssd, ((req_slba)/n->zone_capacity), req->slba, cmd.cdw12, req_slba);
             }
             req->slba = cmd.cdw10 | ((uint64_t)cmd.cdw11<<32);
             req->cmd.cdw10 = cmd.cdw10;
@@ -586,7 +588,6 @@ static void nvme_process_sq_io(void *opaque, int index_poller)
         if (n->print_log) {
             femu_debug("%s,cid:%d\n", __func__, cmd.cid);
         }
-
         status = nvme_io_cmd(n, &cmd, req);
         if (1 && status == NVME_SUCCESS) {
             req->status = status;

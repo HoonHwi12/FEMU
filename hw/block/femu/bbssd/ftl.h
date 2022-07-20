@@ -5,7 +5,9 @@
 
 #define INVALID_PPA     (~(0ULL))
 #define INVALID_LPN     (~(0ULL))
+#define INVALID_LBN     (~(0ULL))
 #define UNMAPPED_PPA    (~(0ULL))
+#define UNMAPPED_PBA    (~(0ULL))
 
 #define SLC_LATENCY_COEFFIENTY  0.3
 #define MLC_LATENCY_COEFFIENTY  0.6
@@ -36,7 +38,11 @@ enum {
 
     PG_FREE = 0,
     PG_INVALID = 1,
-    PG_VALID = 2
+    PG_VALID = 2,
+
+    BLK_FREE = 0,
+    BLK_INVALID = 1,
+    BLK_VALID = 2
 };
 
 enum {
@@ -48,7 +54,7 @@ enum {
 
     FEMU_RESET_ACCT = 5,
     FEMU_ENABLE_LOG = 6,
-    FEMU_DISABLE_LOG = 7,
+    FEMU_DISABLE_LOG = 7
 };
 
 
@@ -73,6 +79,23 @@ struct ppa {
         } g;
 
         uint64_t ppa;
+    };
+};
+
+/* describe a physical blk addr */
+struct pba {
+    union {
+        struct {
+            uint64_t blk : BLK_BITS;
+            uint64_t pg  : PG_BITS;
+            uint64_t sec : SEC_BITS;
+            uint64_t pl  : PL_BITS;
+            uint64_t lun : LUN_BITS;
+            uint64_t ch  : CH_BITS;
+            uint64_t rsv : 1;
+        } g;
+
+        uint64_t pba;
     };
 };
 
@@ -230,8 +253,13 @@ struct ssd {
     struct ssdparams sp;
     struct ssd_channel *ch;
     struct ppa *maptbl; /* page level mapping table */
-    struct ppa *slctbl;
+
+    //* by HH
+    struct pba *blktbl; /* page level mapping table */
+    struct ppa *slctbl; /* slc zone level mapping table */
+
     uint64_t *rmap;     /* reverse mapptbl, assume it's stored in OOB */
+    uint64_t *rblkmap;     /* reverse mapblktbl, assume it's stored in OOB */
     struct write_pointer wp;
     struct line_mgmt lm;
 

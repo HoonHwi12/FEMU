@@ -1505,11 +1505,13 @@ static inline uint16_t nvme_check_mdts(FemuCtrl *n, size_t len)
 //#define H_DEBUG_LEVEL1
 //#define H_DEBUG_LEVEL2
 #define H_DEBUG_NAND
-//#define H_DEBUG_NAND_VERBOSE
+#define H_DEBUG_NAND_VERBOSE
 //#define H_DEBUG_OVERPROVISION
 #define H_DEBUG_ADMIN
 //#define H_DEBUG_READ
 #define H_DEBUG_WRITE
+#define H_DEBUG_GC
+
 
 #ifdef H_DEBUG_LEVEL1
 #define h_log(fmt, ...) \
@@ -1580,6 +1582,15 @@ static inline uint16_t nvme_check_mdts(FemuCtrl *n, size_t len)
 #endif
 #ifndef H_DEBUG_WRITE
 #define h_log_writecmd(fmt, ...) \
+    do {  } while (0)        
+#endif
+
+#ifdef H_DEBUG_GC
+#define h_log_gc(fmt, ...) \
+    do { fprintf(stderr, "[hoonhwi] GC: " fmt, ## __VA_ARGS__); } while (0)        
+#endif
+#ifndef H_DEBUG_GC
+#define h_log_gc(fmt, ...) \
     do {  } while (0)        
 #endif
 // -----------------------------------------------------------------------------------------------------

@@ -1226,6 +1226,16 @@ static uint16_t nvme_zconfig_control(FemuCtrl *n, NvmeCmd *cmd)
         ssd->rmap[i] = INVALID_LPN;
     }
 
+    /* initialize blktbl */
+    for (int i = 0; i < spp->tt_blks; i++) {
+        ssd->blktbl[i].pba = UNMAPPED_PBA;
+    }
+
+    /* initialize rblkmap */
+    for (int i = 0; i < spp->tt_blks; i++) {
+        ssd->rblkmap[i] = INVALID_LBN;
+    }    
+
     /* initialize all the lines */
     h_log_admin("initialize lines\n");
 
