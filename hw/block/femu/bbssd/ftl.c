@@ -838,25 +838,25 @@ static void mark_page_valid(struct ssd *ssd, struct ppa *ppa, bool debug, uint32
     struct nand_block *blk = NULL;
     struct nand_page *pg = NULL;
     struct line *line;
-printf("Get pg\n");
+//printf("Get pg\n");
     /* update page status */
     pg = get_pg(ssd, ppa);
     ftl_assert(pg->status == PG_FREE);
     pg->status = PG_VALID;
 
-printf("Get blk!\n");
+//printf("Get blk!\n");
     /* update corresponding block status */
     blk = get_blk(ssd, ppa);
     ftl_assert(blk->vpc >= 0 && blk->vpc < ssd->sp.pgs_per_blk);
     blk->vpc++;
 
-printf("Get line: %d\n", ppa->g.blk);
+//printf("Get line: %d\n", ppa->g.blk);
     /* update corresponding line status */
     line = get_line(ssd, ppa);
-    printf("Get line finish!\n");
+//printf("Get line finish!\n");
     ftl_assert(line->vpc >= 0 && line->vpc < ssd->sp.pgs_per_line);
     line->vpc++;
-    printf("mark page valid finish!\n");
+//printf("mark page valid finish!\n");
 
     if(debug)
     {
@@ -882,20 +882,20 @@ static void mark_slc_page_valid(struct ssd *ssd, struct ppa *ppa)
         //ppa->g.ch, ppa->g.lun, ppa->g.pl, ppa->g.blk, ppa->g.pg);
     /* update corresponding block status */
     blk = get_blk(ssd, ppa);
-    printf("get blk ch%d pl%d lun%d pblk%d pg:%d vpc:%d ipc:%d\n",
-        ppa->g.ch, ppa->g.pl, ppa->g.lun, ppa->g.blk, ppa->g.pg,blk->vpc, blk->ipc);
+//printf("get blk ch%d pl%d lun%d pblk%d pg:%d vpc:%d ipc:%d\n",
+//    ppa->g.ch, ppa->g.pl, ppa->g.lun, ppa->g.blk, ppa->g.pg,blk->vpc, blk->ipc);
     ftl_assert(blk->vpc >= 0 && blk->vpc < ssd->sp.pgs_per_blk);
     blk->vpc++;
-    printf("blk vpc++ ch%d pl%d lun%d pblk%d vpc:%d ipc:%d\n",
-        ppa->g.ch, ppa->g.pl, ppa->g.lun, ppa->g.blk, blk->vpc, blk->ipc);
+//printf("blk vpc++ ch%d pl%d lun%d pblk%d vpc:%d ipc:%d\n",
+//    ppa->g.ch, ppa->g.pl, ppa->g.lun, ppa->g.blk, blk->vpc, blk->ipc);
 
     /* update corresponding line status */
     line = &(slm.lines[ppa->g.blk]);
-    printf("get line pblk%d vpc:%d ipc:%d\n", ppa->g.blk, line->vpc, line->ipc);
+//printf("get line pblk%d vpc:%d ipc:%d\n", ppa->g.blk, line->vpc, line->ipc);
     ftl_assert(line>vpc >= 0 && line->vpc < ssd->sp.pgs_per_line);
 
     line->vpc++;
-        printf("line vpc++ pblk%d vpc:%d ipc:%d\n", ppa->g.blk, line->vpc, line->ipc);
+//printf("line vpc++ pblk%d vpc:%d ipc:%d\n", ppa->g.blk, line->vpc, line->ipc);
 }
 
 static void mark_block_free(struct ssd *ssd, struct ppa *ppa)
@@ -1168,6 +1168,11 @@ h_log_gc("advance status ");
                     new_pba.g.pl = new_ppa.g.pl;
 
                     blk = get_blk(ssd, &new_ppa);
+                    if(blk == NULL)
+                    {
+                        printf("Error: get GC blk is NULL! ch:%d lun:%d pl:%d blk:%d pg:%d\n",
+                            new_ppa.g.ch, new_ppa.g.lun, new_ppa.g.pl, new_ppa.g.blk, new_ppa.g.pg);
+                    }
                     if(blk->ipc == 0 && blk->vpc ==0)
                     {
                         h_log_gc("unmapped blk! set TLC maptbl\n");
@@ -1550,8 +1555,8 @@ static uint64_t slc_write(struct ssd *ssd, NvmeRequest *req)
             set_rmap_blk(ssd, lbn, &pba);
         }
         else{
-            printf("already mapped blk! lbn:%ld pblk: %d ipc: %d vpc: %d\n",
-                lbn, ppa.g.blk, blk->ipc, blk->vpc);
+//            printf("already mapped blk! lbn:%ld pblk: %d ipc: %d vpc: %d\n",
+ //               lbn, ppa.g.blk, blk->ipc, blk->vpc);
         }
 
         /* update maptbl */
@@ -1559,7 +1564,6 @@ static uint64_t slc_write(struct ssd *ssd, NvmeRequest *req)
 
         /* update rmap */
         //set_rmap_ent(ssd, lpn, &ppa);
-printf("mark slc page valid\n");
         mark_slc_page_valid(ssd, &ppa);
 
         //printf("slc write: curline id%d ipc%d vpc%d\n", wpp->curline->id, wpp->curline->ipc, wpp->curline->vpc);
@@ -1658,7 +1662,6 @@ static void *ftl_thread(void *arg)
     int rc;
     int i;
     clock_t idle_timer = clock();
-
     while (!*(ssd->dataplane_started_ptr)) {
         usleep(100000);
     }
@@ -1733,13 +1736,13 @@ static void *ftl_thread(void *arg)
             }
         }
 
-        //if( (slc_wp*2 > slm.tt_lines*spp->pgs_per_blk*spp->nchs*spp->luns_per_ch)
-            //&& ((float)(clock() - idle_timer)/CLOCKS_PER_SEC > 1) ) 
-            if(slc_wp > 0
-                && (float)((clock() - idle_timer)/CLOCKS_PER_SEC) > 1
-                && spp->pgs_per_blk > 0)
+        if( (slc_wp*2 > slm.tt_lines*spp->pgs_per_blk*spp->nchs*spp->luns_per_ch)
+            && ((float)(clock() - idle_timer)/CLOCKS_PER_SEC > 1) ) 
+            // if(slc_wp > 0
+            //     && (float)((clock() - idle_timer)/CLOCKS_PER_SEC) > 1
+            //     && spp->pgs_per_blk > 0)
         {
-            h_log_gc("gc start\n");
+            printf("gc start\n");
             do_slc_gc(n, ssd);
         }
     }
