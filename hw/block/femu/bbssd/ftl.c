@@ -1127,6 +1127,11 @@ static int do_slc_gc(FemuCtrl *n, struct ssd *ssd)
                 lbn = lpn / spp->pgs_per_blk / spp->luns_per_ch / spp->nchs;
                 //ppa = get_maptbl_ent(ssd, lpn);
                 pba = get_maptbl_blk(ssd, lbn);
+                if(pba.g.pl > 0)
+                {
+                    printf("get maptbl blk pl: %d\n", pba.g.pl);
+                    continue;
+                }
 
                 ch = lpn % 2;
                 lun = (lpn % (spp->nchs * spp->luns_per_ch)) / spp->nchs;
@@ -1137,7 +1142,7 @@ static int do_slc_gc(FemuCtrl *n, struct ssd *ssd)
                 ppa.g.pl = pba.g.pl;
                 ppa.g.blk = pba.g.blk;
                 ppa.g.pg = pg;
-                ppa.g.sec = 0x89;
+                //ppa.g.sec = 0x89;
                 h_log_gc("SLC GC: lbn: %ld, ch%d lun%d pl%d blk%d pg%d\n",
                     lbn, ppa.g.ch, ppa.g.lun, ppa.g.pl, ppa.g.blk, ppa.g.pg);
 
