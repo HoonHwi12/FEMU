@@ -47,6 +47,7 @@ static inline struct pba get_maptbl_blk(struct ssd *ssd, uint64_t lbn)
 static inline void set_maptbl_blk(struct ssd *ssd, uint64_t lbn, struct pba *pba)
 {
     ftl_assert(lbn < ssd->sp.tt_blks);
+    printf("set blk maptbl lbn: %ld pblk: %d#############################################\n", lbn, pba->g.blk);
     ssd->blktbl[lbn] = *pba;
 }
 
@@ -588,24 +589,28 @@ static inline bool mapped_ppa(struct ppa *ppa)
 
 static inline struct ssd_channel *get_ch(struct ssd *ssd, struct ppa *ppa)
 {
+    if(ppa->g.sec == 0x89) printf("get ch%d\n", ppa->g.ch);
     return &(ssd->ch[ppa->g.ch]);
 }
 
 static inline struct nand_lun *get_lun(struct ssd *ssd, struct ppa *ppa)
 {
     struct ssd_channel *ch = get_ch(ssd, ppa);
+    if(ppa->g.sec == 0x89) printf("lun%d\n", ppa->g.lun);
     return &(ch->lun[ppa->g.lun]);
 }
 
 static inline struct nand_plane *get_pl(struct ssd *ssd, struct ppa *ppa)
 {
     struct nand_lun *lun = get_lun(ssd, ppa);
+    if(ppa->g.sec == 0x89) printf("pl%d\n", ppa->g.pl);
     return &(lun->pl[ppa->g.pl]);
 }
 
 static inline struct nand_block *get_blk(struct ssd *ssd, struct ppa *ppa)
 {
     struct nand_plane *pl = get_pl(ssd, ppa);
+    if(ppa->g.sec == 0x89) printf("blk%d\n", ppa->g.blk);
     return &(pl->blk[ppa->g.blk]);
 }
 
@@ -617,6 +622,7 @@ static inline struct line *get_line(struct ssd *ssd, struct ppa *ppa)
 static inline struct nand_page *get_pg(struct ssd *ssd, struct ppa *ppa)
 {
     struct nand_block *blk = get_blk(ssd, ppa);
+    if(ppa->g.sec == 0x89) printf("pg%d\n", ppa->g.pg);
     return &(blk->pg[ppa->g.pg]);
 }
 
@@ -832,23 +838,25 @@ static void mark_page_valid(struct ssd *ssd, struct ppa *ppa, bool debug, uint32
     struct nand_block *blk = NULL;
     struct nand_page *pg = NULL;
     struct line *line;
-//printf("Get pg!\n");
+printf("Get pg\n");
     /* update page status */
     pg = get_pg(ssd, ppa);
     ftl_assert(pg->status == PG_FREE);
     pg->status = PG_VALID;
 
-//printf("Get blk!\n");
+printf("Get blk!\n");
     /* update corresponding block status */
     blk = get_blk(ssd, ppa);
     ftl_assert(blk->vpc >= 0 && blk->vpc < ssd->sp.pgs_per_blk);
     blk->vpc++;
 
-//printf("Get line!\n");
+printf("Get line: %d\n", ppa->g.blk);
     /* update corresponding line status */
     line = get_line(ssd, ppa);
+    printf("Get line finish!\n");
     ftl_assert(line->vpc >= 0 && line->vpc < ssd->sp.pgs_per_line);
     line->vpc++;
+    printf("mark page valid finish!\n");
 
     if(debug)
     {
@@ -867,19 +875,27 @@ static void mark_slc_page_valid(struct ssd *ssd, struct ppa *ppa)
     /* update page status */
     pg = get_pg(ssd, ppa);
     ftl_assert(pg->status == PG_FREE);
+
     pg->status = PG_VALID;
+
 //    printf("mark slc pg valid: ch%d lun%d pl%d blk%d pg%d\n",
         //ppa->g.ch, ppa->g.lun, ppa->g.pl, ppa->g.blk, ppa->g.pg);
-
     /* update corresponding block status */
     blk = get_blk(ssd, ppa);
+    printf("get blk ch%d pl%d lun%d pblk%d pg:%d vpc:%d ipc:%d\n",
+        ppa->g.ch, ppa->g.pl, ppa->g.lun, ppa->g.blk, ppa->g.pg,blk->vpc, blk->ipc);
     ftl_assert(blk->vpc >= 0 && blk->vpc < ssd->sp.pgs_per_blk);
     blk->vpc++;
+    printf("blk vpc++ ch%d pl%d lun%d pblk%d vpc:%d ipc:%d\n",
+        ppa->g.ch, ppa->g.pl, ppa->g.lun, ppa->g.blk, blk->vpc, blk->ipc);
 
     /* update corresponding line status */
     line = &(slm.lines[ppa->g.blk]);
+    printf("get line pblk%d vpc:%d ipc:%d\n", ppa->g.blk, line->vpc, line->ipc);
     ftl_assert(line>vpc >= 0 && line->vpc < ssd->sp.pgs_per_line);
+
     line->vpc++;
+        printf("line vpc++ pblk%d vpc:%d ipc:%d\n", ppa->g.blk, line->vpc, line->ipc);
 }
 
 static void mark_block_free(struct ssd *ssd, struct ppa *ppa)
@@ -1101,36 +1117,39 @@ static int do_slc_gc(FemuCtrl *n, struct ssd *ssd)
             lba = map_tbl->zdslba;
             len = map_tbl->zdnlb;
             start_lpn = lba / spp->secs_per_pg;
-            end_lpn = (lba + len + 1) / spp->secs_per_pg;
+            end_lpn = (lba + len - 1) / spp->secs_per_pg;
 
-            h_log_gc("zone[#%d] #data: %ld, length: %d\n",
-                i, tbl->num_slc_data, map_tbl->zdnlb);
+            h_log_gc("zone[#%d] #data: %ld, length: %d, start lpn: %ld, end lpn: %ld\n",
+                i, tbl->num_slc_data, map_tbl->zdnlb, start_lpn, end_lpn);
 
             for (lpn = start_lpn; lpn <= end_lpn; lpn++)
             {
-                lbn = lpn * spp->secs_per_pg / spp->secs_per_blk;
+                lbn = lpn / spp->pgs_per_blk / spp->luns_per_ch / spp->nchs;
                 //ppa = get_maptbl_ent(ssd, lpn);
                 pba = get_maptbl_blk(ssd, lbn);
 
-                pg = (lpn % (spp->nchs * spp->luns_per_ch * spp->pgs_per_blk)) / (spp->nchs * spp->luns_per_ch);
                 ch = lpn % 2;
                 lun = (lpn % (spp->nchs * spp->luns_per_ch)) / spp->nchs;
+                pg = lpn / (spp->nchs * spp->luns_per_ch);
 
                 ppa.g.ch = ch;
                 ppa.g.lun = lun;
                 ppa.g.pl = pba.g.pl;
                 ppa.g.blk = pba.g.blk;
                 ppa.g.pg = pg;
-                h_log_gc("SLC GC: lbn: %ld, ch%d lun%d pl%d blk%d pg%d\n", lbn, ppa.g.ch, ppa.g.lun, ppa.g.pl, ppa.g.blk, ppa.g.pg);
+                ppa.g.sec = 0x89;
+                h_log_gc("SLC GC: lbn: %ld, ch%d lun%d pl%d blk%d pg%d\n",
+                    lbn, ppa.g.ch, ppa.g.lun, ppa.g.pl, ppa.g.blk, ppa.g.pg);
 
                 pg_iter = get_pg(ssd, &ppa);
+
                 if (pg_iter->status == PG_VALID)
                 {
                     //* GC read
                     gcr.type = GC_IO;
                     gcr.cmd = NAND_READ;
                     gcr.stime = 0;
-
+h_log_gc("advance status ");
                     ssd_advance_status(ssd, &ppa, &gcr, SLC);
 
                     //* GC write
@@ -1148,10 +1167,10 @@ static int do_slc_gc(FemuCtrl *n, struct ssd *ssd)
                     new_pba.g.lun = new_ppa.g.lun;
                     new_pba.g.pl = new_ppa.g.pl;
 
-                    blk = get_blk(ssd, &ppa);
+                    blk = get_blk(ssd, &new_ppa);
                     if(blk->ipc == 0 && blk->vpc ==0)
                     {
-                        h_log_gc("unmapped blk! set maptbl\n");
+                        h_log_gc("unmapped blk! set TLC maptbl\n");
                         set_maptbl_blk(ssd, (map_tbl->target_addr / spp->secs_per_blk), &new_pba);
                         set_rmap_blk(ssd, (map_tbl->target_addr / spp->secs_per_blk), &new_pba);
                     }
@@ -1183,7 +1202,8 @@ static int do_slc_gc(FemuCtrl *n, struct ssd *ssd)
                 } // for all pg in a block
                 else
                 {
-                    printf("slc pg not valid: ch%d lun%d pl%d blk%d pg%d\n",
+                    h_log_gc("slc pg not valid! : ");
+                    h_log_gc("ch%d lun%d pl%d blk%d pg%d\n",
                         ppa.g.ch, ppa.g.lun, ppa.g.pl, ppa.g.blk, ppa.g.pg);
                 }
             } // for all nlb in a mapping
@@ -1309,14 +1329,14 @@ static uint64_t ssd_read(struct ssd *ssd, NvmeRequest *req)
     /* normal IO read path */
     for (lpn = start_lpn; lpn <= end_lpn; lpn++) {
     //for (lbn = lba/spp->secs_per_blk; lbn <= (lba + nsecs - 1)/spp->secs_per_blk; lbn++) {
-        lbn = lpn * spp->secs_per_pg / spp->secs_per_blk;
+        lbn = lpn / spp->pgs_per_blk / spp->luns_per_ch / spp->nchs;
         //ppa = get_maptbl_ent(ssd, lba / spp->secs_per_pg);
 //printf("debug] get_maptbl_blk lba:0x%lx, lbn:%ld, nsecs: %d\n", lba, lbn, nsecs);
         pba = get_maptbl_blk(ssd, lbn);
 
-        pg = (lpn % (spp->nchs * spp->luns_per_ch * spp->pgs_per_blk)) / (spp->nchs * spp->luns_per_ch);
         ch = lpn % 2;
         lun = (lpn % (spp->nchs * spp->luns_per_ch)) / spp->nchs;
+        pg = lpn / (spp->nchs * spp->luns_per_ch);
 
         ppa.g.ch = ch;
         ppa.g.lun = lun;
@@ -1350,7 +1370,7 @@ static uint64_t ssd_write(FemuCtrl *n, struct ssd *ssd, NvmeRequest *req)
     struct ssdparams *spp = &ssd->sp;
     int len = req->nlb;
     uint64_t start_lpn = lba / spp->secs_per_pg;
-    uint64_t end_lpn = (lba + len - 1) / spp->secs_per_pg;
+    uint64_t end_lpn = (lba + len -1) / spp->secs_per_pg;
     struct ppa ppa;
     struct pba pba;
     uint64_t lpn;
@@ -1386,12 +1406,12 @@ static uint64_t ssd_write(FemuCtrl *n, struct ssd *ssd, NvmeRequest *req)
     for (lpn = start_lpn; lpn <= end_lpn; lpn++) {
     //for (lbn = lba/spp->secs_per_blk; lbn <= (lba+len-1)/spp->secs_per_blk; lbn++) {
         //ppa = get_maptbl_ent(ssd, lpn);
-        lbn = lpn * spp->secs_per_pg / spp->secs_per_blk;
+        lbn = lpn / spp->pgs_per_blk / spp->luns_per_ch / spp->nchs;
         pba = get_maptbl_blk(ssd, lbn);
         
-        pg = (lpn % (spp->nchs * spp->luns_per_ch * spp->pgs_per_blk)) / (spp->nchs * spp->luns_per_ch);
         ch = lpn % 2;
         lun = (lpn % (spp->nchs * spp->luns_per_ch)) / spp->nchs;
+        pg = lpn / (spp->nchs * spp->luns_per_ch);
 
         ppa.g.ch = ch;
         ppa.g.lun = lun;
@@ -1425,6 +1445,7 @@ static uint64_t ssd_write(FemuCtrl *n, struct ssd *ssd, NvmeRequest *req)
         pba.g.pl = ppa.g.pl;
 
         blk = get_blk(ssd, &ppa);
+
         if(blk->ipc == 0 && blk->vpc ==0)
         {
             set_maptbl_blk(ssd, lbn, &pba);
@@ -1471,7 +1492,7 @@ static uint64_t slc_write(struct ssd *ssd, NvmeRequest *req)
     struct ssdparams *spp = &ssd->sp;
     int len = req->nlb;
     uint64_t start_lpn = lba / spp->secs_per_pg;
-    uint64_t end_lpn = (lba + len - 1) / spp->secs_per_pg;
+    uint64_t end_lpn = (lba + len -1) / spp->secs_per_pg;
     struct ppa ppa;
     struct pba pba;
     uint64_t lpn;
@@ -1485,14 +1506,16 @@ static uint64_t slc_write(struct ssd *ssd, NvmeRequest *req)
         ftl_err("end_lpn=%"PRIu64",tt_pgs=%d\n", end_lpn, spp->tt_pgs);
     }
 //printf("debug] ftl slc write\n");
+
     for (lpn = start_lpn; lpn <= end_lpn; lpn++) {
         //ppa = get_maptbl_ent(ssd, lpn);
-        lbn = lpn * spp->secs_per_pg / spp->secs_per_blk;
+        lbn = lpn / spp->pgs_per_blk / spp->luns_per_ch / spp->nchs;
+
         pba = get_maptbl_blk(ssd, lbn);
         
-        pg = (lpn % (spp->nchs * spp->luns_per_ch * spp->pgs_per_blk)) / (spp->nchs * spp->luns_per_ch);
         ch = lpn % 2;
         lun = (lpn % (spp->nchs * spp->luns_per_ch)) / spp->nchs;
+        pg = lpn / (spp->nchs * spp->luns_per_ch);
 
         ppa.g.ch = ch;
         ppa.g.lun = lun;
@@ -1526,13 +1549,17 @@ static uint64_t slc_write(struct ssd *ssd, NvmeRequest *req)
             set_maptbl_blk(ssd, lbn, &pba);
             set_rmap_blk(ssd, lbn, &pba);
         }
+        else{
+            printf("already mapped blk! lbn:%ld pblk: %d ipc: %d vpc: %d\n",
+                lbn, ppa.g.blk, blk->ipc, blk->vpc);
+        }
 
         /* update maptbl */
         //set_maptbl_ent(ssd, lpn, &ppa);        
 
         /* update rmap */
         //set_rmap_ent(ssd, lpn, &ppa);
-
+printf("mark slc page valid\n");
         mark_slc_page_valid(ssd, &ppa);
 
         //printf("slc write: curline id%d ipc%d vpc%d\n", wpp->curline->id, wpp->curline->ipc, wpp->curline->vpc);
@@ -1592,6 +1619,7 @@ static uint64_t slc_write(struct ssd *ssd, NvmeRequest *req)
                         abort();
                     }
                     wpp->blk = wpp->curline->id;
+                    printf("debug] advanced slc write pointer new blkid: %d\n", wpp->blk);
                     check_addr(wpp->blk, spp->blks_per_pl);
                     /* make sure we are starting from page 0 in the super block */
                     ftl_assert(wpp->pg == 0);
