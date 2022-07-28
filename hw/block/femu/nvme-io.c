@@ -45,7 +45,7 @@ static void zns_assign_zone_state(NvmeNamespace *ns, NvmeZone *zone,
             ;
         }
     }
-    
+
     zns_set_zone_state(zone, state);
 
     switch (state) {
@@ -160,6 +160,7 @@ static uint16_t zns_check_zone_state_for_write(NvmeZone *zone)
     uint16_t status;
 
     switch (zns_get_zone_state(zone)) {
+    case NVME_ZONE_STATE_RESERVED:
     case NVME_ZONE_STATE_EMPTY:
     case NVME_ZONE_STATE_IMPLICITLY_OPEN:
     case NVME_ZONE_STATE_EXPLICITLY_OPEN:
@@ -233,6 +234,7 @@ static uint16_t zns_check_zone_state_for_read(NvmeZone *zone)
     uint16_t status;
 
     switch (zns_get_zone_state(zone)) {
+    case NVME_ZONE_STATE_RESERVED:
     case NVME_ZONE_STATE_EMPTY:
     case NVME_ZONE_STATE_IMPLICITLY_OPEN:
     case NVME_ZONE_STATE_EXPLICITLY_OPEN:

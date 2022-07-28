@@ -1050,7 +1050,7 @@ static uint16_t nvme_print_flash_type(FemuCtrl *n, NvmeCmd *cmd)
         zone->d.zs>>4==0?"Rsrved":zone->d.zs>>4==1?"Empty":zone->d.zs>>4==2?"ImplicOpen" \
         :zone->d.zs>>4==3?"ExpliOpen":zone->d.zs>>4==4?"Closed":zone->d.zs>>4==0xD?"RdOnly" \
         :zone->d.zs>>4==0xE?"Full":zone->d.zs>>4==0xF?"Offline":"Unknown"
-        ,zone->d.zt==0?"Rsrved":"SeqW"
+        ,zone->d.zt==0?"Rsrved":zone->d.zt==1?"Conv":"SeqW"
         ,zone->d.zone_flash_type==1?"SLC":zone->d.zone_flash_type==2?"MLC"\
         :zone->d.zone_flash_type==3?"TLC":zone->d.zone_flash_type==4?"QLC":"Unknown");
     }
@@ -1091,6 +1091,9 @@ static uint16_t nvme_zconfig_control(FemuCtrl *n, NvmeCmd *cmd)
     struct line *line;
     struct ssdparams *spp = &ssd->sp;
 
+    NvmeZone *zone;
+    zone = n->zone_array;
+
     if(cmd->cdw10 != 0x899) n->max_active_zones = cmd->cdw10;
     if(cmd->cdw11 != 0x899) n->max_open_zones = cmd->cdw11;
     if(cmd->cdw12 != 0x899)
@@ -1101,58 +1104,27 @@ static uint16_t nvme_zconfig_control(FemuCtrl *n, NvmeCmd *cmd)
             printf("invalid argument! argument: %d > total line: %d",
                 cmd->cdw12, lm->tt_lines);
         }
-        // if(cmd->cdw12 < 2*(n->num_zones))
-        // {
-        //     printf("Number of SLC line must be larger than 0x%x!(2*number_zones)\n", 2*(n->num_zones));
-        // }
         else
         {
             slm.tt_lines = cmd->cdw12;
             lm->tt_lines = spp->blks_per_pl - slm.tt_lines;
-
-            // NvmeZone *zone = n->zone_array;
-            // uint32_t zone_index = 0;
-            // uint64_t last_slc_zone_cap = cmd->cdw12;
-
-            // while( !(cmd->cdw12 > zone->d.zslba) || !(cmd->cdw12 <= (zone->d.zslba + n->zone_capacity)) )
-            // {
-            //     if(zone->d.zone_flash_type != SLC)
-            //     {
-            //         ns_size -= n->zone_size;
-            //         zone->d.zone_flash_type = SLC;
-            //     }
-            //     zone->d.zcap = n->zone_capacity;
-            //     last_slc_zone_cap -= zone->d.zcap;
-            //     zone++;
-            //     zone_index++;
-            //     if(zone_index > n->num_zones)
-            //     {
-            //         femu_err("cmd out-of bounds\n");
-            //         return NVME_ZONE_BOUNDARY_ERROR;
-            //     }
-            // }
-            
-            // if(zone->d.zone_flash_type != SLC)
-            // {
-            //     ns_size -= n->zone_size;
-            //     zone->d.zone_flash_type = SLC;
-            // }
-            
-            // zone->d.zcap = last_slc_zone_cap;
-            // NUM_SLC_BLK = (uint64_t)cmd->cdw12;
-            // zone++;
-            // TLC_START_LBA = zone->d.zslba;
-            // while(zone->d.zone_flash_type == SLC)
-            // {
-            //     zone->d.zone_flash_type = n->flash_type;
-            //     zone->d.zcap = n->zone_capacity;
-            //     zone++;
-            // }
-
-            // h_log_admin("zone[%d] num_slc_block: 0x%lx, TLC_START_LBA: 0x%lx\n", zone_index, NUM_SLC_BLK, TLC_START_LBA);
         }
     }
-    printf("cdw10: %d, cdw11: %d, cdw12: %d\n",cmd->cdw10,cmd->cdw11,cmd->cdw12);
+    if(cmd->cdw13 != 0x899 && cmd->cdw13 <n->num_zones)
+    {
+        for (int i = 0; i < cmd->cdw13; i++, zone++)
+        {
+            zone->d.zt = NVME_ZONE_TYPE_CONVENTIONAL;
+            zone->d.zs = NVME_ZONE_STATE_RESERVED;
+        }
+        for(int j = cmd->cdw13; j < n->num_zones; j++, zone++)
+        {
+            zone->d.zt = NVME_ZONE_TYPE_SEQ_WRITE;
+            zone->d.zs = NVME_ZONE_STATE_EMPTY;
+        }
+    }
+    printf("cdw10: %d, cdw11: %d, cdw12: %d, cdw13: %d\n",
+        cmd->cdw10,cmd->cdw11,cmd->cdw12, cmd->cdw13);
 
     //* by HH: ssd init ******************************************
     struct ssd_channel *sch;
@@ -1302,7 +1274,6 @@ static uint16_t nvme_zconfig_control(FemuCtrl *n, NvmeCmd *cmd)
 
     uint64_t start = 0, zone_size = n->zone_size;
     uint64_t capacity = n->num_zones * zone_size;
-    NvmeZone *zone;
     int i;
 
     //* by HH: added 2
@@ -1327,12 +1298,15 @@ static uint16_t nvme_zconfig_control(FemuCtrl *n, NvmeCmd *cmd)
             zone_size = capacity - start;
         }
         
-        zone->d.zt = NVME_ZONE_TYPE_SEQ_WRITE;
+        //zone->d.zt = NVME_ZONE_TYPE_SEQ_WRITE;
 
         //if(i < n->num_zones-1) zone->d.zt = NVME_ZONE_TYPE_SEQ_WRITE;
         //else zone->d.zt = NVME_ZONE_TYPE_CONVENTIONAL;
 
-        zns_set_zone_state(zone, NVME_ZONE_STATE_EMPTY);
+        if(zone->d.zs != NVME_ZONE_STATE_RESERVED)
+        {
+            zns_set_zone_state(zone, NVME_ZONE_STATE_EMPTY);
+        }
         zone->d.za = 0;
         // zone->d.zcap = n->zone_capacity;
         // zone->d.zone_flash_type = n->flash_type;
@@ -1389,18 +1363,7 @@ static uint16_t nvme_zconfig_control(FemuCtrl *n, NvmeCmd *cmd)
 }
 
 static uint16_t nvme_debug_mode(FemuCtrl *n, NvmeCmd *cmd)
-{
-    // if(cmd->cdw10 != 0x899)
-    // {
-    //     if(cmd->cdw10 >= 0x1)
-    //     {
-    //         #define H_DEBUG_LOG
-    //     }
-    //     else
-    //     {
-    //         #undef H_DEBUG_LOG
-    //     }
-    // }
+{   
     if(cmd->cdw11 != 0x899)
     {
         if(cmd->cdw11 >= 0x1)
@@ -1411,7 +1374,7 @@ static uint16_t nvme_debug_mode(FemuCtrl *n, NvmeCmd *cmd)
         {
             H_TEST_LOG = false;
         }
-    }
+    }  
 
     return NVME_SUCCESS;
 }

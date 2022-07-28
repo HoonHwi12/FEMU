@@ -300,7 +300,8 @@ static inline bool zns_wp_is_valid(NvmeZone *zone)
 
     return st != NVME_ZONE_STATE_FULL &&
            st != NVME_ZONE_STATE_READ_ONLY &&
-           st != NVME_ZONE_STATE_OFFLINE;
+           st != NVME_ZONE_STATE_OFFLINE &&
+           st != NVME_ZONE_STATE_RESERVED;
 }
 
 static inline uint8_t *zns_get_zd_extension(NvmeNamespace *ns, uint32_t zone_idx)

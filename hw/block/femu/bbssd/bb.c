@@ -113,10 +113,11 @@ static void zns_init_zoned_state(NvmeNamespace *ns)
         zone->d.zone_flash_type = n->flash_type;
 
         zone->d.zt = NVME_ZONE_TYPE_SEQ_WRITE;
+
         // by HH ---------------------------------------------------
-        if(i < n->num_zones-1)
+        if(false)
         {
-            //zone->d.zt = NVME_ZONE_TYPE_SEQ_WRITE;
+            //zone->d.zt = NVME_ZONE_TYPE_CONVENTIONAL;
             
             //zone->d.zone_flash_type = SLC;
             //TLC_START_LBA = zone->d.zslba + zone->d.zcap;
@@ -744,6 +745,7 @@ static uint16_t zns_zone_mgmt_recv(FemuCtrl *n, NvmeRequest *req)
             z->zslba = cpu_to_le64(zone->d.zslba);
             z->za = zone->d.za;
 
+
             if (zns_wp_is_valid(zone)) {
                 z->wp = cpu_to_le64(zone->d.wp);
             }else {
@@ -791,7 +793,7 @@ static void bb_init_ctrl_str(FemuCtrl *n)
 
     static int fsid_zns = 0;
     const char *zns_mn = "FEMU ZNS-SSD Controller";
-    const char *zns_sn = "vZNSSD";
+    const char *zns_sn = "vZNS_2.1";
 
     nvme_set_ctrl_name(n, zns_mn, zns_sn, &fsid_zns);
 
@@ -916,6 +918,7 @@ static void bb_flip(FemuCtrl *n, NvmeCmd *cmd)
 static uint16_t bb_nvme_rw(FemuCtrl *n, NvmeNamespace *ns, NvmeCmd *cmd,
                            NvmeRequest *req)
 {
+    //printf("return bb nvme_rw\n");
     return nvme_rw(n, ns, cmd, req, false);
 }
 
