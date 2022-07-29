@@ -354,12 +354,15 @@ static uint16_t zns_do_zone_op(NvmeNamespace *ns, NvmeZone *zone,
 
     if (!proc_mask) {
         status = op_hndlr(ns, zone, zns_get_zone_state(zone), req);
+        printf("status here: %d, zone wp: 0x%lx, zone state: %d\n",
+            status, zone->d.wp, zns_get_zone_state(zone));
     } else {
         if (proc_mask & NVME_PROC_CLOSED_ZONES) {
             QTAILQ_FOREACH_SAFE(zone, &n->closed_zones, entry, next) {
                 status = zns_bulk_proc_zone(ns, zone, proc_mask, op_hndlr,
                                              req);
                 if (status && status != NVME_NO_COMPLETE) {
+                    printf("here2\n");
                     goto out;
                 }
             }
@@ -369,6 +372,7 @@ static uint16_t zns_do_zone_op(NvmeNamespace *ns, NvmeZone *zone,
                 status = zns_bulk_proc_zone(ns, zone, proc_mask, op_hndlr,
                                              req);
                 if (status && status != NVME_NO_COMPLETE) {
+                    printf("here3\n");
                     goto out;
                 }
             }
@@ -377,6 +381,7 @@ static uint16_t zns_do_zone_op(NvmeNamespace *ns, NvmeZone *zone,
                 status = zns_bulk_proc_zone(ns, zone, proc_mask, op_hndlr,
                                              req);
                 if (status && status != NVME_NO_COMPLETE) {
+                    printf("here4\n");
                     goto out;
                 }
             }
@@ -386,6 +391,7 @@ static uint16_t zns_do_zone_op(NvmeNamespace *ns, NvmeZone *zone,
                 status = zns_bulk_proc_zone(ns, zone, proc_mask, op_hndlr,
                                              req);
                 if (status && status != NVME_NO_COMPLETE) {
+                    printf("here5\n");
                     goto out;
                 }
             }
@@ -396,6 +402,7 @@ static uint16_t zns_do_zone_op(NvmeNamespace *ns, NvmeZone *zone,
                 status = zns_bulk_proc_zone(ns, zone, proc_mask, op_hndlr,
                                              req);
                 if (status && status != NVME_NO_COMPLETE) {
+                    printf("here6\n");
                     goto out;
                 }
             }
@@ -565,12 +572,14 @@ static uint16_t zns_zone_mgmt_send(FemuCtrl *n, NvmeRequest *req)
     if (!all) {
         status = zns_get_mgmt_zone_slba_idx(n, cmd, &slba, &zone_idx);
         if (status) {
+            printf("zone_mgmt_send failed\n");
             return status;
         }
     }
 
     zone = &n->zone_array[zone_idx];
     if (slba != zone->d.zslba) {
+        printf("slba != zone->d.zslba\n");
         return NVME_INVALID_FIELD | NVME_DNR;
     }
 
@@ -579,18 +588,21 @@ static uint16_t zns_zone_mgmt_send(FemuCtrl *n, NvmeRequest *req)
         if (all) {
             proc_mask = NVME_PROC_CLOSED_ZONES;
         }
+        printf("action open\n");
         status = zns_do_zone_op(ns, zone, proc_mask, zns_open_zone, req);
         break;
     case NVME_ZONE_ACTION_CLOSE:
         if (all) {
             proc_mask = NVME_PROC_OPENED_ZONES;
         }
+        printf("action close\n");
         status = zns_do_zone_op(ns, zone, proc_mask, zns_close_zone, req);
         break;
     case NVME_ZONE_ACTION_FINISH:
         if (all) {
             proc_mask = NVME_PROC_OPENED_ZONES | NVME_PROC_CLOSED_ZONES;
         }
+        printf("action finish\n");
         status = zns_do_zone_op(ns, zone, proc_mask, zns_finish_zone, req);
         break;
     case NVME_ZONE_ACTION_RESET:
@@ -601,6 +613,7 @@ static uint16_t zns_zone_mgmt_send(FemuCtrl *n, NvmeRequest *req)
                 NVME_PROC_FULL_ZONES;
         }
         *resets = 1;
+        printf("action reset\n");
         status = zns_do_zone_op(ns, zone, proc_mask, zns_reset_zone, req);
         (*resets)--;
         return NVME_SUCCESS;
@@ -608,16 +621,20 @@ static uint16_t zns_zone_mgmt_send(FemuCtrl *n, NvmeRequest *req)
         if (all) {
             proc_mask = NVME_PROC_READ_ONLY_ZONES;
         }
+        printf("action offline\n");
         status = zns_do_zone_op(ns, zone, proc_mask, zns_offline_zone, req);
         break;
     case NVME_ZONE_ACTION_SET_ZD_EXT:
         if (all || !n->zd_extension_size) {
+            printf("NVME_ZONE_ACTION_SET_ZD_EXT: extension size is 0\n");
             return NVME_INVALID_FIELD | NVME_DNR;
         }
         zd_ext = zns_get_zd_extension(ns, zone_idx);
+        printf("action set_zd_ext\n");
         status = dma_write_prp(n, (uint8_t *)zd_ext, n->zd_extension_size, prp1,
                                prp2);
         if (status) {
+            printf("dma write prp failed\n");
             return status;
         }
         status = zns_set_zd_ext(ns, zone);
@@ -626,10 +643,12 @@ static uint16_t zns_zone_mgmt_send(FemuCtrl *n, NvmeRequest *req)
         }
         break;
     default:
+        printf("status=nvme_invalid_field\n");
         status = NVME_INVALID_FIELD;
     }
 
     if (status) {
+        printf("status = nvme_dnr\n");
         status |= NVME_DNR;
     }
 
@@ -685,28 +704,34 @@ static uint16_t zns_zone_mgmt_recv(FemuCtrl *n, NvmeRequest *req)
 
     status = zns_get_mgmt_zone_slba_idx(n, cmd, &slba, &zone_idx);
     if (status) {
+        printf("zone_mgmt_recv failed\n");
         return status;
     }
 
     zra = dw13 & 0xff;
     if (zra != NVME_ZONE_REPORT && zra != NVME_ZONE_REPORT_EXTENDED) {
+        printf("zone_mgmt_recv zra failed\n");
         return NVME_INVALID_FIELD | NVME_DNR;
     }
     if (zra == NVME_ZONE_REPORT_EXTENDED && !n->zd_extension_size) {
+        printf("zone_mgmt_recv extension failed\n");
         return NVME_INVALID_FIELD | NVME_DNR;
     }
 
     zrasf = (dw13 >> 8) & 0xff;
     if (zrasf > NVME_ZONE_REPORT_OFFLINE) {
+        printf("zone_mgmt_recv zrasf > zone_report_offline\n");
         return NVME_INVALID_FIELD | NVME_DNR;
     }
 
     if (data_size < sizeof(NvmeZoneReportHeader)) {
+        printf("zone_mgmt_recv data_size < nvmezone_report_size\n");
         return NVME_INVALID_FIELD | NVME_DNR;
     }
 
     status = nvme_check_mdts(n, data_size);
     if (status) {
+        printf("zone_mgmt_recv check mdts failed\n");
         return status;
     }
 
@@ -793,7 +818,7 @@ static void bb_init_ctrl_str(FemuCtrl *n)
 
     static int fsid_zns = 0;
     const char *zns_mn = "FEMU ZNS-SSD Controller";
-    const char *zns_sn = "vZNS_2.1";
+    const char *zns_sn = "vZNS_2.3";
 
     nvme_set_ctrl_name(n, zns_mn, zns_sn, &fsid_zns);
 

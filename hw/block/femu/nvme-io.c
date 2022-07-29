@@ -298,7 +298,6 @@ static void zns_finalize_zoned_write(NvmeNamespace *ns, NvmeRequest *req,
     slba = le64_to_cpu(rw->slba);
     nlb = le16_to_cpu(rw->nlb) + 1;
     zone = zns_get_zone_by_slba(ns, slba);
-
     zone->d.wp += nlb;
 
     if (failed) {
@@ -433,7 +432,8 @@ static void nvme_process_sq_io(void *opaque, int index_poller)
             //     zone++;
             // }
 
-            if( (slc_wp + cmd.cdw12 + 1) >
+            if( slm.tt_lines == 0
+                || (slc_wp + cmd.cdw12 + 1) >
                 (slm.tt_lines*spp->pgs_per_blk*spp->nchs*spp->luns_per_ch) - (2*(n->num_zones)) )
             {
                 //* SLC FULL, to Overprovisioning?
@@ -442,7 +442,8 @@ static void nvme_process_sq_io(void *opaque, int index_poller)
                 //slc_mapping *map_tbl = tbl->slcmap;
 
                 //if((slc_wp + cmd.cdw12) < (zone->d.zslba + zone->d.zcap))
-                if( (slc_wp + cmd.cdw12 + 1) <
+                if( slm.tt_lines > 0
+                    && (slc_wp + cmd.cdw12 + 1) <
                     slm.tt_lines*spp->pgs_per_blk*spp->nchs*spp->luns_per_ch )
                 {
                     h_log_provision("Over-provisioning? zone[%ld] SLC Data: %ld, DataRemain=%ld\n",
@@ -451,6 +452,8 @@ static void nvme_process_sq_io(void *opaque, int index_poller)
                     if(tbl->num_slc_data%3 == 0)
                     {
                         h_log_provision("tbl_Data:%ld, no over-provision!, to TLC\n", tbl->num_slc_data%3);
+
+
                     }
                     else
                     {
@@ -469,8 +472,13 @@ static void nvme_process_sq_io(void *opaque, int index_poller)
 
                         req->cmd.cdw15 = 0x89; //slc flag
 
-                        ori_zone->w_ptr += cmd.cdw12 + 1;
                         ori_zone->d.wp += cmd.cdw12 + 1;
+
+                        //* by HH: ori-zone open
+                        zns_auto_transition_zone(n->namespaces);
+                        zns_advance_zone_wp(n->namespaces, ori_zone, cmd.cdw12+1);
+                        //*
+
                         if (ori_zone->d.wp == zns_zone_wr_boundary(ori_zone))
                         {
                             switch (zns_get_zone_state(ori_zone))
@@ -517,8 +525,13 @@ static void nvme_process_sq_io(void *opaque, int index_poller)
 
                 req->cmd.cdw15 = 0x89; //slc flag
 
-                ori_zone->w_ptr += cmd.cdw12 + 1;
                 ori_zone->d.wp += cmd.cdw12 + 1;
+
+                //* by HH: ori-zone open
+                zns_auto_transition_zone(n->namespaces);
+                zns_advance_zone_wp(n->namespaces, ori_zone, cmd.cdw12+1);
+                //*
+
                 if (ori_zone->d.wp == zns_zone_wr_boundary(ori_zone))
                 {
                     switch (zns_get_zone_state(ori_zone))
@@ -602,7 +615,8 @@ static void nvme_process_sq_io(void *opaque, int index_poller)
             /* Normal I/Os that don't need delay emulation */
             req->status = status;
         } else {
-            femu_err("Error IO processed!\n");
+            printf("Error IO processed!\n");
+            sleep(10000);
         }
 
         processed++;

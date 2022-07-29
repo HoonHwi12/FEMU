@@ -201,16 +201,19 @@ void ssd_init_write_pointer(FemuCtrl *n, struct ssd *ssd)
     struct line *curline;
     write_pointer *nwp = wpzone.wpnand;
 
-    wpp->curline = NULL;
-    wpp->curline = QTAILQ_FIRST(&slm.free_line_list);
-    QTAILQ_REMOVE(&slm.free_line_list, wpp->curline, entry);
-    slm.free_line_cnt--;
+    if(slm.tt_lines > 0)
+    {
+        wpp->curline = NULL;
+        wpp->curline = QTAILQ_FIRST(&slm.free_line_list);
+        QTAILQ_REMOVE(&slm.free_line_list, wpp->curline, entry);
+        slm.free_line_cnt--;
 
-    wpp->ch = 0;
-    wpp->lun = 0;
-    wpp->pg = 0;
-    wpp->blk = 0;
-    wpp->pl = 0;
+        wpp->ch = 0;
+        wpp->lun = 0;
+        wpp->pg = 0;
+        wpp->blk = 0;
+        wpp->pl = 0;
+    }
 
     for(int i=0; i < n->num_zones; i++)
     {
@@ -1741,7 +1744,8 @@ static void *ftl_thread(void *arg)
             }
         }
 
-        if( (slc_wp*2 > slm.tt_lines*spp->pgs_per_blk*spp->nchs*spp->luns_per_ch)
+        if( slm.tt_lines > 0
+            && (slc_wp*2 > slm.tt_lines*spp->pgs_per_blk*spp->nchs*spp->luns_per_ch)
             && ((float)(clock() - idle_timer)/CLOCKS_PER_SEC > 1) ) 
             // if(slc_wp > 0
             //     && (float)((clock() - idle_timer)/CLOCKS_PER_SEC) > 1
