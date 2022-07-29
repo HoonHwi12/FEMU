@@ -359,7 +359,7 @@ void ssd_init_params(FemuCtrl *n, struct ssdparams *spp)
     spp->secs_per_pg = 32; // 16k per pg
     spp->pgs_per_blk = 1024; // 16mb per blk
     spp->blks_per_pl = 1024; // 16gb per pl
-    spp->blks_per_pl += n->num_zones+1;
+    spp->blks_per_pl += (2*n->num_zones)+1;
     spp->pls_per_lun = 1;
     spp->luns_per_ch = 2; // 32gb per ch
     spp->nchs = 2; // 64gb total
