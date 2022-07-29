@@ -304,7 +304,7 @@ static uint16_t zns_get_mgmt_zone_slba_idx(FemuCtrl *n, NvmeCmd *c,
 
     *zone_idx = zns_zone_idx(ns, *slba);
 
-    printf("slba 0x%lx, zone idx: %d, n->num_zones %d\n", *slba, *zone_idx, n->num_zones);
+    //printf("slba 0x%lx, zone idx: %d, n->num_zones %d\n", *slba, *zone_idx, n->num_zones);
     assert(*zone_idx < n->num_zones);
 
     return NVME_SUCCESS;
@@ -354,8 +354,6 @@ static uint16_t zns_do_zone_op(NvmeNamespace *ns, NvmeZone *zone,
 
     if (!proc_mask) {
         status = op_hndlr(ns, zone, zns_get_zone_state(zone), req);
-        printf("status here: %d, zone wp: 0x%lx, zone state: %d\n",
-            status, zone->d.wp, zns_get_zone_state(zone));
     } else {
         if (proc_mask & NVME_PROC_CLOSED_ZONES) {
             QTAILQ_FOREACH_SAFE(zone, &n->closed_zones, entry, next) {
@@ -588,21 +586,18 @@ static uint16_t zns_zone_mgmt_send(FemuCtrl *n, NvmeRequest *req)
         if (all) {
             proc_mask = NVME_PROC_CLOSED_ZONES;
         }
-        printf("action open\n");
         status = zns_do_zone_op(ns, zone, proc_mask, zns_open_zone, req);
         break;
     case NVME_ZONE_ACTION_CLOSE:
         if (all) {
             proc_mask = NVME_PROC_OPENED_ZONES;
         }
-        printf("action close\n");
         status = zns_do_zone_op(ns, zone, proc_mask, zns_close_zone, req);
         break;
     case NVME_ZONE_ACTION_FINISH:
         if (all) {
             proc_mask = NVME_PROC_OPENED_ZONES | NVME_PROC_CLOSED_ZONES;
         }
-        printf("action finish\n");
         status = zns_do_zone_op(ns, zone, proc_mask, zns_finish_zone, req);
         break;
     case NVME_ZONE_ACTION_RESET:
@@ -613,7 +608,6 @@ static uint16_t zns_zone_mgmt_send(FemuCtrl *n, NvmeRequest *req)
                 NVME_PROC_FULL_ZONES;
         }
         *resets = 1;
-        printf("action reset\n");
         status = zns_do_zone_op(ns, zone, proc_mask, zns_reset_zone, req);
         (*resets)--;
         return NVME_SUCCESS;
@@ -621,7 +615,6 @@ static uint16_t zns_zone_mgmt_send(FemuCtrl *n, NvmeRequest *req)
         if (all) {
             proc_mask = NVME_PROC_READ_ONLY_ZONES;
         }
-        printf("action offline\n");
         status = zns_do_zone_op(ns, zone, proc_mask, zns_offline_zone, req);
         break;
     case NVME_ZONE_ACTION_SET_ZD_EXT:

@@ -47,7 +47,7 @@ static inline struct pba get_maptbl_blk(struct ssd *ssd, uint64_t lbn)
 static inline void set_maptbl_blk(struct ssd *ssd, uint64_t lbn, struct pba *pba)
 {
     ftl_assert(lbn < ssd->sp.tt_blks);
-    printf("set blk maptbl lbn: %ld pblk: %d#############################################\n", lbn, pba->g.blk);
+    //printf("set blk maptbl lbn: %ld pblk: %d#############################################\n", lbn, pba->g.blk);
     ssd->blktbl[lbn] = *pba;
 }
 

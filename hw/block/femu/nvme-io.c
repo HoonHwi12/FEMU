@@ -743,7 +743,6 @@ static void *nvme_poller(void *arg)
         }
         break;
     default:
-        printf("Hoonhwi] Number of IO Queues: %d\n", n->num_io_queues);
         while (1) {
             if ((!n->dataplane_started)) {
                 usleep(1000);
