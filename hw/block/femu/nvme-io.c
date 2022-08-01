@@ -433,8 +433,8 @@ static void nvme_process_sq_io(void *opaque, int index_poller)
             // }
 
             if( slm.tt_lines == 0
-                || (slc_wp + cmd.cdw12 + 1) >
-                (slm.tt_lines*spp->pgs_per_blk*spp->nchs*spp->luns_per_ch) - (2*(n->num_zones)) )
+                || (slc_wp + cmd.cdw12 + 1)*spp->secsz > (slm.tt_lines*spp->secsz*spp->secs_per_pg*spp->pgs_per_blk*spp->nchs*spp->luns_per_ch) - (2*(n->num_zones))
+                || IN_SLC_GC )
             {
                 //* SLC FULL, to Overprovisioning?
                 slctbl *tbl = rslc.mapslc;
@@ -443,8 +443,8 @@ static void nvme_process_sq_io(void *opaque, int index_poller)
 
                 //if((slc_wp + cmd.cdw12) < (zone->d.zslba + zone->d.zcap))
                 if( slm.tt_lines > 0
-                    && (slc_wp + cmd.cdw12 + 1) <
-                    slm.tt_lines*spp->pgs_per_blk*spp->nchs*spp->luns_per_ch )
+                    && (slc_wp + cmd.cdw12 + 1)*spp->secsz < (slm.tt_lines*spp->secsz*spp->secs_per_pg*spp->pgs_per_blk*spp->nchs*spp->luns_per_ch)
+                    && !IN_SLC_GC )
                 {
                     h_log_provision("Over-provisioning? zone[%ld] SLC Data: %ld, DataRemain=%ld\n",
                         ((req->slba)/n->zone_capacity), tbl->num_slc_data, tbl->num_slc_data%3);
@@ -512,7 +512,7 @@ static void nvme_process_sq_io(void *opaque, int index_poller)
                 }
                 else
                 {
-                    h_log_provision("SLC region is full!, to TLC\n");
+                    h_log_provision("Cannot write to SLC region\n");
                 }
             }
             else

@@ -19,6 +19,7 @@ typedef struct ScatterGatherEntry ScatterGatherEntry;
 
 
 extern bool H_TEST_LOG;
+extern bool IN_SLC_GC;
 
 typedef enum {
     DMA_DIRECTION_TO_DEVICE = 0,

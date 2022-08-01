@@ -70,7 +70,7 @@ extern uint64_t        NUM_SLC_BLK;
 
 typedef struct slc_mapping {
     uint64_t zdslba;
-    uint32_t zdnlb;
+    uint64_t zdnlb;
 
     // uint32_t zdline;
     // uint32_t zdch;
@@ -119,7 +119,6 @@ inline void set_mapslc_ent(struct ssd *ssd, uint16_t zone_index, uint64_t zdslba
         map_tbl->zdnlb = zdnlb;  
         map_tbl->target_addr = target_addr;
         map_tbl->isvalid = true;
-
         // map_tbl->zdline = ppa.g.blk;
         // map_tbl->zdch = ppa.g.ch;
         // map_tbl->zdlun = ppa.g.lun;
@@ -162,7 +161,7 @@ inline void set_mapslc_ent(struct ssd *ssd, uint16_t zone_index, uint64_t zdslba
         }
     }
 
-    if(map_tbl->zdnlb % 0x10000 == 0) h_log_writecmd("zone[#%d] #data[%ld] slba: 0x%lx, nlb: 0x%x, target: 0x%lx, valid: %d\n",
+    if(map_tbl->zdnlb % 0x10000 == 0) h_log_writecmd("zone[#%d] #data[%ld] slba: 0x%lx, nlb: 0x%lx, target: 0x%lx, valid: %d\n",
        zone_index, tbl->num_slc_data-1, map_tbl->zdslba, map_tbl->zdnlb, map_tbl->target_addr, map_tbl->isvalid);            
 }
 

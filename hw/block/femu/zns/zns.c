@@ -7,6 +7,7 @@
 //* by HH
 #include "../bbssd/ftl.h"
 bool H_TEST_LOG = false;
+bool IN_SLC_GC = false;
 
 struct slc_region rslc;
 struct w_pointer wpzone;
