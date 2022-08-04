@@ -350,14 +350,14 @@ static void slc_advance_write_pointer(struct ssd *ssd)
                     ftl_assert(wpp->curline->ipc == 0);
                     QTAILQ_INSERT_TAIL(&slm.full_line_list, wpp->curline, entry);
                     slm.full_line_cnt++;
-                    h_log_nand("line[%d] to full line list! full:%d\n", wpp->curline->id, slm.full_line_cnt);
+                    h_log_nand("line[%d] to full line list! full:%d, slc_wp: 0x%lx\n", wpp->curline->id, slm.full_line_cnt, slc_wp);
                 } else {
                     ftl_assert(wpp->curline->vpc >= 0 && wpp->curline->vpc < spp->pgs_per_line);
                     /* there must be some invalid pages in this line */
                     ftl_assert(wpp->curline->ipc > 0);
                     pqueue_insert(slm.victim_line_pq, wpp->curline);
                     slm.victim_line_cnt++;
-                    h_log_nand("line[%d] to victim line list!, victim:%d\n", wpp->curline->id, slm.victim_line_cnt);
+                    h_log_nand("line[%d] to victim line list!, victim:%d, slc_wp: 0x%lx\n", wpp->curline->id, slm.victim_line_cnt, slc_wp);
                 }
                 /* current line is used up, pick another empty line */
                 check_addr(wpp->blk, spp->blks_per_pl);
@@ -367,9 +367,11 @@ static void slc_advance_write_pointer(struct ssd *ssd)
                         slc_wp, slm.tt_lines, spp->nchs, spp->luns_per_ch, spp->pgs_per_blk);
 
                 if (!wpp->curline) {
-                    printf("No free lines left in [%s] !!!!\n", ssd->ssdname);
+                    printf("No free lines left in SLC, slc_wp(0x%lx)\n", slc_wp);
                     h_log_nand("total lines: %d, full line: %d, free line: %d\n",
                         slm.tt_lines, slm.full_line_cnt, slm.free_line_cnt);
+
+                    sleep(10000);
                 }
                 h_log_nand("slc new line id: %d, slc free line cnt: %d, pgs_per_blk: %d\n",
                     wpp->curline->id, slm.free_line_cnt, spp->pgs_per_blk);
@@ -383,7 +385,8 @@ static void slc_advance_write_pointer(struct ssd *ssd)
                     abort();
                 }
                 wpp->blk = wpp->curline->id;
-                printf("debug] advanced slc write pointer new blkid: %d\n", wpp->blk);
+                printf("Advance slc write pointer: new ch(%d) lun(%d) pl(%d) blk(%d) pl(%d)\n",
+                    wpp->ch, wpp->lun, wpp->pl, wpp->blk, wpp->pg);
                 check_addr(wpp->blk, spp->blks_per_pl);
                 /* make sure we are starting from page 0 in the super block */
                 ftl_assert(wpp->pg == 0);
@@ -434,12 +437,12 @@ void ssd_init_params(FemuCtrl *n, struct ssdparams *spp)
 {
     spp->secsz = 512;
     spp->secs_per_pg = 32; // 16k per pg
-    spp->pgs_per_blk = 512; // 4mb per blk
-    spp->blks_per_pl = 512; // 4gb per pl
+    spp->pgs_per_blk = 512; // 2mb per blk
+    spp->blks_per_pl = 512; // 1gb per pl
     spp->blks_per_pl += (2*n->num_zones)+1;
     spp->pls_per_lun = 1;
-    spp->luns_per_ch = 2; // 8gb per ch
-    spp->nchs = 8; // 64gb total
+    spp->luns_per_ch = 2; // 2gb per ch
+    spp->nchs = 8; // 16gb total
 
     // spp->pg_rd_lat = NAND_TLC_READ_LATENCY;
     // spp->pg_wr_lat = NAND_TLC_PROG_LATENCY;
@@ -1325,6 +1328,7 @@ static int do_slc_gc(FemuCtrl *n, struct ssd *ssd)
             pqueue_pop(slm.victim_line_pq);
             gc_line->pos = 0;
             slm.victim_line_cnt--;
+            slm.free_line_cnt++;
         }
         else if(slm.full_line_cnt > 0)
         {
@@ -1332,6 +1336,7 @@ static int do_slc_gc(FemuCtrl *n, struct ssd *ssd)
             if(!gc_line) printf("no full line selected!! err\n");
             QTAILQ_REMOVE(&slm.full_line_list, gc_line,entry);
             slm.full_line_cnt--;
+            slm.free_line_cnt++;
         }
         else if(swpp->curline->ipc > 0 || swpp->curline->vpc > 0)
         {
@@ -1390,7 +1395,6 @@ static int do_slc_gc(FemuCtrl *n, struct ssd *ssd)
         gc_line->ipc = 0;
         gc_line->vpc = 0;
         QTAILQ_INSERT_TAIL(&slm.free_line_list, gc_line, entry);
-        slm.free_line_cnt++;
     }
 
     slc_wp = 0;
@@ -1665,6 +1669,13 @@ static uint64_t slc_write(struct ssd *ssd, NvmeRequest *req)
         pba.g.ch = ppa.g.ch;
         pba.g.lun = ppa.g.lun;
         pba.g.pl = ppa.g.pl;
+
+        if(pba.g.ch >= spp->nchs || pba.g.lun >= spp->luns_per_ch || pba.g.pl >= spp->pls_per_lun
+            || pba.g.blk >= slm.tt_lines || ppa.g.pg > spp->pgs_per_blk)
+        {
+            printf("warning: Attempting to write in invalid physical area! ch(%d) lun(%d) pl(%d) blk(%d) pg(%d)\n",
+                pba.g.ch, pba.g.lun, pba.g.pl, pba.g.blk, ppa.g.pg);
+        }
 
         blk = get_blk(ssd, &ppa);
         

@@ -314,15 +314,43 @@ static inline void zns_aor_inc_open(NvmeNamespace *ns)
     assert(n->nr_open_zones >= 0);
     if (n->max_open_zones) {
         n->nr_open_zones++;
+
+        if(n->nr_open_zones > n->max_open_zones)
+        {
+            printf("Error! nr_open_zones: %d, max_open_zones: %d\n", n->nr_open_zones, n->max_open_zones);
+            sleep(10000);
+        }
         assert(n->nr_open_zones <= n->max_open_zones);
     }
+}
+
+static inline void zns_aor_dec_open_debug(NvmeNamespace *ns, int debug_root)
+{
+    FemuCtrl *n = ns->ctrl;
+    if (n->max_open_zones) {
+        if(n->nr_open_zones <= 0)
+        {
+            printf("Error! n->nr_open_zones=%d...root function: %d\n", n->nr_open_zones, debug_root);
+            sleep(10000);
+
+            assert(n->nr_open_zones > 0);
+        }
+        n->nr_open_zones--;
+    }
+    assert(n->nr_open_zones >= 0);
 }
 
 static inline void zns_aor_dec_open(NvmeNamespace *ns)
 {
     FemuCtrl *n = ns->ctrl;
     if (n->max_open_zones) {
-        assert(n->nr_open_zones > 0);
+        if(n->nr_open_zones <= 0)
+        {
+            printf("Error! n->nr_open_zones=%d\n", n->nr_open_zones);
+            if(system("nvme hoon print-zones /dev/nvme0n1 -r 32")) printf("system command failed\n");
+
+            assert(n->nr_open_zones > 0);
+        }
         n->nr_open_zones--;
     }
     assert(n->nr_open_zones >= 0);

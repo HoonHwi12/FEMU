@@ -1033,6 +1033,7 @@ static uint16_t nvme_print_flash_type(FemuCtrl *n, NvmeCmd *cmd)
     if(print_range > n->num_zones) print_range = n->num_zones;
 
     printf("\n");
+    printf("ssd free line: %d\n", ssd->lm.free_line_cnt);
     printf("LINE-info   ] ttLine: %d, Linesize: 0x%x pgs, TLCttline: %d, SLCttline: %d, TLC-full/free/victim: %d/%d/%d, SLC-full/free/victim: %d/%d/%d\n",
         spp->tt_lines, spp->nchs*spp->luns_per_ch*spp->pgs_per_blk, lm->tt_lines, slm.tt_lines, lm->full_line_cnt, lm->free_line_cnt, lm->victim_line_cnt,
         slm.full_line_cnt, slm.free_line_cnt, slm.victim_line_cnt);
@@ -1247,7 +1248,7 @@ static uint16_t nvme_zconfig_control(FemuCtrl *n, NvmeCmd *cmd)
         /* initialize all the lines as free lines */
         QTAILQ_INSERT_TAIL(&lm->free_line_list, line, entry);
         lm->free_line_cnt++;
-        printf("tlc lm id:%d inserted to tail\n", line->id);
+        printf("tlc lm id:%d inserted to tail, tlc free:%d, ssd tlc free:%d\n", line->id, lm->free_line_cnt, ssd->lm.free_line_cnt);
     }
     ftl_assert(lm->free_line_cnt == lm->tt_lines);
     lm->victim_line_cnt = 0;

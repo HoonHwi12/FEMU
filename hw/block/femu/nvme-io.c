@@ -78,7 +78,7 @@ static void zns_auto_transition_zone(NvmeNamespace *ns)
         if (zone) {
              /* Automatically close this implicitly open zone */
             QTAILQ_REMOVE(&n->imp_open_zones, zone, entry);
-            zns_aor_dec_open(ns);
+            zns_aor_dec_open_debug(ns, 1);
             zns_assign_zone_state(ns, zone, NVME_ZONE_STATE_CLOSED);
         }
     }
@@ -308,7 +308,7 @@ static void zns_finalize_zoned_write(NvmeNamespace *ns, NvmeRequest *req,
         switch (zns_get_zone_state(zone)) {
         case NVME_ZONE_STATE_IMPLICITLY_OPEN:
         case NVME_ZONE_STATE_EXPLICITLY_OPEN:
-            zns_aor_dec_open(ns);
+            zns_aor_dec_open_debug(ns, 2);
 
             /* fall through */
         case NVME_ZONE_STATE_CLOSED:
@@ -431,9 +431,10 @@ static void nvme_process_sq_io(void *opaque, int index_poller)
             //     zone_index++;
             //     zone++;
             // }
+            uint64_t line_cap = ((uint32_t)slm.tt_lines*(uint32_t)spp->secs_per_pg*(uint32_t)spp->pgs_per_blk*(uint32_t)spp->nchs*(uint32_t)spp->luns_per_ch);
 
             if( slm.tt_lines == 0
-                || (slc_wp + cmd.cdw12 + 1)*spp->secsz > (slm.tt_lines*spp->secsz*spp->secs_per_pg*spp->pgs_per_blk*spp->nchs*spp->luns_per_ch) - (2*(n->num_zones))
+                || ( ((slc_wp + cmd.cdw12 + 1)) >= (line_cap - (2*n->num_zones)) )
                 || IN_SLC_GC )
             {
                 //* SLC FULL, to Overprovisioning?
@@ -442,9 +443,7 @@ static void nvme_process_sq_io(void *opaque, int index_poller)
                 //slc_mapping *map_tbl = tbl->slcmap;
 
                 //if((slc_wp + cmd.cdw12) < (zone->d.zslba + zone->d.zcap))
-                if( slm.tt_lines > 0
-                    && (slc_wp + cmd.cdw12 + 1)*spp->secsz < (slm.tt_lines*spp->secsz*spp->secs_per_pg*spp->pgs_per_blk*spp->nchs*spp->luns_per_ch)
-                    && !IN_SLC_GC )
+                if( (slm.tt_lines > 0) && ((slc_wp + cmd.cdw12 + 1)) < line_cap && !IN_SLC_GC )
                 {
                     h_log_provision("Over-provisioning? zone[%ld] SLC Data: %ld, DataRemain=%ld\n",
                         ((req->slba)/n->zone_capacity), tbl->num_slc_data, tbl->num_slc_data%3);
@@ -452,17 +451,13 @@ static void nvme_process_sq_io(void *opaque, int index_poller)
                     if(tbl->num_slc_data%3 == 0)
                     {
                         h_log_provision("tbl_Data:%ld, no over-provision!, to TLC\n", tbl->num_slc_data%3);
-
-
                     }
                     else
                     {
-                        // h_log_provision("Over-provision!, zone_slba:0x%lx, zone_cap: 0x%lx\n",
-                        //     zone->d.zslba, zone->d.zcap);
-                        h_log_provision("Over-provision!, slc_wp + cmd.cdw12:0x%lx, slc cap: 0x%x\n",
-                            slc_wp + cmd.cdw12, slm.tt_lines*spp->nchs*spp->luns_per_ch*spp->pgs_per_blk);
-                        // h_log_provision("wp: 0x%lx, req nlb: 0x%x, cmd nlb: 0x%x, req.slba: 0x%lx\n",
-                        //     slc_wp, req->cmd.cdw12, cmd.cdw12, req->slba); 
+                         h_log_provision("Over-provision!, zone_slba:0x%lx, zone_cap: 0x%lx\n",
+                             zone->d.zslba, zone->d.zcap);
+                         h_log_provision("wp: 0x%lx, req nlb: 0x%x, cmd nlb: 0x%x, req.slba: 0x%lx\n",
+                             slc_wp, req->cmd.cdw12, cmd.cdw12, req->slba); 
 
                         req_slba = req->slba;
 
@@ -485,7 +480,7 @@ static void nvme_process_sq_io(void *opaque, int index_poller)
                             {
                             case NVME_ZONE_STATE_IMPLICITLY_OPEN:
                             case NVME_ZONE_STATE_EXPLICITLY_OPEN:
-                                zns_aor_dec_open(n->namespaces);
+                                zns_aor_dec_open_debug(n->namespaces, 3);
 
                                 /* fall through */
                             case NVME_ZONE_STATE_CLOSED:
@@ -538,7 +533,7 @@ static void nvme_process_sq_io(void *opaque, int index_poller)
                     {
                     case NVME_ZONE_STATE_IMPLICITLY_OPEN:
                     case NVME_ZONE_STATE_EXPLICITLY_OPEN:
-                        zns_aor_dec_open(n->namespaces);
+                        zns_aor_dec_open_debug(n->namespaces, 4);
 
                         /* fall through */
                     case NVME_ZONE_STATE_CLOSED:
