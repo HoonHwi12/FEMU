@@ -337,11 +337,11 @@ static inline void zns_aor_dec_open_debug(NvmeNamespace *ns, int debug_root)
     FemuCtrl *n = ns->ctrl;
     if (n->max_open_zones) {
         //*by HH: wait
-        while (n->nr_open_zones <= 0)
-        {
-            printf("Error! n->nr_open_zones=%d...root function: %d, usleep(1000)\n", n->nr_open_zones, debug_root);
-            usleep(1000);
-        }
+        // while (n->nr_open_zones <= 0)
+        // {
+        //     printf("Error! n->nr_open_zones=%d...root function: %d, usleep(1000)\n", n->nr_open_zones, debug_root);
+        //     usleep(1000);
+        // }
         if(n->nr_open_zones <= 0)
         {
             printf("Error! n->nr_open_zones=%d...root function: %d\n", n->nr_open_zones, debug_root);
