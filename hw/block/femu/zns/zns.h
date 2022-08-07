@@ -313,8 +313,9 @@ static inline void zns_aor_inc_open(NvmeNamespace *ns)
     FemuCtrl *n = ns->ctrl;
     assert(n->nr_open_zones >= 0);
     if (n->max_open_zones) {
-        while (n->nr_open_zones >= n->max_open_zones)
+        while (n->nr_open_zones > n->max_open_zones)
         {
+            printf("Error! nr_open_zones: %d, max_open_zones: %d, usleep(1000)\n", n->nr_open_zones, n->max_open_zones);
             usleep(1000);
         }
         
@@ -333,11 +334,16 @@ static inline void zns_aor_dec_open_debug(NvmeNamespace *ns, int debug_root)
 {
     FemuCtrl *n = ns->ctrl;
     if (n->max_open_zones) {
+        //*by HH: wait
+        while (n->nr_open_zones <= 0)
+        {
+            printf("Error! n->nr_open_zones=%d...root function: %d, usleep(1000)\n", n->nr_open_zones, debug_root);
+            usleep(1000);
+        }
         if(n->nr_open_zones <= 0)
         {
             printf("Error! n->nr_open_zones=%d...root function: %d\n", n->nr_open_zones, debug_root);
             sleep(10000);
-
             assert(n->nr_open_zones > 0);
         }
         n->nr_open_zones--;
@@ -377,6 +383,20 @@ static inline void zns_aor_dec_active(NvmeNamespace *ns)
     if (n->max_active_zones) {
         assert(n->nr_active_zones > 0);
         n->nr_active_zones--;
+
+        //* HH: wait
+        while (n->nr_active_zones < n->nr_open_zones)
+        {
+            printf("Error! nr_active_zones: %d, nr_open_zones: %d, usleep(1000)\n", n->nr_active_zones, n->nr_open_zones);
+            usleep(1000);
+        }
+        if(n->nr_active_zones < n->nr_open_zones)
+        {
+            printf("Error! nr_active_zones: %d, nr_open_zones: %d\n", n->nr_active_zones, n->nr_open_zones);
+            sleep(10000);
+        } 
+        //*
+
         assert(n->nr_active_zones >= n->nr_open_zones);
     }
     assert(n->nr_active_zones >= 0);

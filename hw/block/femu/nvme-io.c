@@ -431,7 +431,7 @@ static void nvme_process_sq_io(void *opaque, int index_poller)
             //     zone_index++;
             //     zone++;
             // }
-            uint64_t line_cap = ((uint32_t)slm.tt_lines*(uint32_t)spp->secs_per_pg*(uint32_t)spp->pgs_per_blk*(uint32_t)spp->nchs*(uint32_t)spp->luns_per_ch);
+            uint64_t line_cap = ((uint32_t)slm.tt_lines*(uint32_t)spp->secs_per_pg*(uint32_t)spp->pgs_per_blk*(uint32_t)spp->nchs*(uint32_t)spp->luns_per_ch) - 0x20000;
 
             if( slm.tt_lines == 0
                 || ( ((slc_wp + cmd.cdw12 + 1)) >= (line_cap - (2*n->num_zones)) )
