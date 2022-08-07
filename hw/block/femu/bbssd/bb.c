@@ -448,6 +448,7 @@ static uint16_t zns_open_zone(NvmeNamespace *ns, NvmeZone *zone,
             return status;
         }
         zns_aor_inc_open(ns);
+        printf("nr_active--(%d), zonewp(0x%lx)\n", ns->ctrl->nr_active_zones, zone->w_ptr);
     case NVME_ZONE_STATE_IMPLICITLY_OPEN:
         zns_assign_zone_state(ns, zone, NVME_ZONE_STATE_EXPLICITLY_OPEN);
     case NVME_ZONE_STATE_EXPLICITLY_OPEN:
