@@ -312,7 +312,7 @@ static void zns_finalize_zoned_write(NvmeNamespace *ns, NvmeRequest *req,
         case NVME_ZONE_STATE_IMPLICITLY_OPEN:
         case NVME_ZONE_STATE_EXPLICITLY_OPEN:
             zns_aor_dec_open_debug(ns, 2);
-            printf("write slc: nr_open--(%d)\n");
+            printf("write slc: nr_open--\n");
 
             /* fall through */
         case NVME_ZONE_STATE_CLOSED:
@@ -486,12 +486,12 @@ static void nvme_process_sq_io(void *opaque, int index_poller)
                             case NVME_ZONE_STATE_IMPLICITLY_OPEN:
                             case NVME_ZONE_STATE_EXPLICITLY_OPEN:
                                 zns_aor_dec_open_debug(n->namespaces, 3);
-                                printf("write slc: nr_open--(%d)\n");
+                                printf("write slc: nr_open--\n");
 
                                 /* fall through */
                             case NVME_ZONE_STATE_CLOSED:
                                 zns_aor_dec_active(n->namespaces);
-                                printf("write slc: nr_active--(%d)\n");
+                                printf("write slc: nr_active--\n");
                                 /* fall through */
                             case NVME_ZONE_STATE_EMPTY:
 
@@ -541,12 +541,12 @@ static void nvme_process_sq_io(void *opaque, int index_poller)
                     case NVME_ZONE_STATE_IMPLICITLY_OPEN:
                     case NVME_ZONE_STATE_EXPLICITLY_OPEN:
                         zns_aor_dec_open_debug(n->namespaces, 4);
-                        printf("write slc: nr_open--(%d)\n");
+                        printf("write slc: nr_open--\n");
 
                         /* fall through */
                     case NVME_ZONE_STATE_CLOSED:
                         zns_aor_dec_active(n->namespaces);
-                        printf("write slc: nr_active--(%d)\n");
+                        printf("write slc: nr_active--\n");
                         /* fall through */
                     case NVME_ZONE_STATE_EMPTY:
 
