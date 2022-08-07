@@ -135,7 +135,7 @@ static uint64_t zns_advance_zone_wp(NvmeNamespace *ns, NvmeZone *zone,
             /* fall through */
         case NVME_ZONE_STATE_CLOSED:
             zns_aor_inc_open(ns);
-            printf("nr_open++(%d), zonewp(0x%lx)\n", ns->ctrl->nr_open_zones, zone->w_ptr);
+            printf("nr_open++(%d), advzonewp(0x%lx)\n", ns->ctrl->nr_open_zones, zone->w_ptr);
             zns_assign_zone_state(ns, zone, NVME_ZONE_STATE_IMPLICITLY_OPEN);
         }
     }
