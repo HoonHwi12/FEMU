@@ -320,6 +320,7 @@ static inline void zns_aor_inc_open(NvmeNamespace *ns)
         // }
         
         n->nr_open_zones++;
+        printf("nr_open++(%d)\n", ns->ctrl->nr_open_zones);
 
         if(n->nr_open_zones > n->max_open_zones)
         {
@@ -383,7 +384,6 @@ static inline void zns_aor_dec_active(NvmeNamespace *ns)
     if (n->max_active_zones) {
         assert(n->nr_active_zones > 0);
         n->nr_active_zones--;
-        printf("nr_active--(%d)\n", n->nr_active_zones);
 
         //* HH: wait
         // while (n->nr_active_zones < n->nr_open_zones)

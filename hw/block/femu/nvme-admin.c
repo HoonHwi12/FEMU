@@ -1248,7 +1248,7 @@ static uint16_t nvme_zconfig_control(FemuCtrl *n, NvmeCmd *cmd)
         /* initialize all the lines as free lines */
         QTAILQ_INSERT_TAIL(&lm->free_line_list, line, entry);
         lm->free_line_cnt++;
-        printf("tlc lm id:%d inserted to tail, tlc free:%d, ssd tlc free:%d\n", line->id, lm->free_line_cnt, ssd->lm.free_line_cnt);
+        //printf("tlc lm id:%d inserted to tail, tlc free:%d, ssd tlc free:%d\n", line->id, lm->free_line_cnt, ssd->lm.free_line_cnt);
     }
     ftl_assert(lm->free_line_cnt == lm->tt_lines);
     lm->victim_line_cnt = 0;
