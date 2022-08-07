@@ -67,7 +67,7 @@ static void zns_assign_zone_state(NvmeNamespace *ns, NvmeZone *zone,
     }
 }
 
-static void zns_auto_transition_zone(NvmeNamespace *ns)
+static void zns_auto_transition_zone(NvmeNamespace *ns, int debug)
 {
     FemuCtrl *n = ns->ctrl;
     NvmeZone *zone;
@@ -79,7 +79,7 @@ static void zns_auto_transition_zone(NvmeNamespace *ns)
              /* Automatically close this implicitly open zone */
             QTAILQ_REMOVE(&n->imp_open_zones, zone, entry);
             zns_aor_dec_open_debug(ns, 1);
-            printf("nr_open--(%d), zonewp(0x%lx)\n", ns->ctrl->nr_open_zones, zone->w_ptr);
+            printf("nr_open--(%d), zonewp(0x%lx) %d\n", ns->ctrl->nr_open_zones, zone->w_ptr, debug);
             zns_assign_zone_state(ns, zone, NVME_ZONE_STATE_CLOSED);
         }
     }
@@ -108,10 +108,10 @@ static uint16_t zns_auto_open_zone(NvmeNamespace *ns, NvmeZone *zone)
     uint8_t zs = zns_get_zone_state(zone);
 
     if (zs == NVME_ZONE_STATE_EMPTY) {
-        zns_auto_transition_zone(ns);
+        zns_auto_transition_zone(ns, 1);
         status = zns_aor_check(ns, 1, 1);
     } else if (zs == NVME_ZONE_STATE_CLOSED) {
-        zns_auto_transition_zone(ns);
+        zns_auto_transition_zone(ns, 2);
         status = zns_aor_check(ns, 0, 1);
     }
 
@@ -475,7 +475,7 @@ static void nvme_process_sq_io(void *opaque, int index_poller)
                         ori_zone->d.wp += cmd.cdw12 + 1;
 
                         //* by HH: ori-zone open
-                        zns_auto_transition_zone(n->namespaces);
+                        zns_auto_transition_zone(n->namespaces, 3);
                         zns_advance_zone_wp(n->namespaces, ori_zone, cmd.cdw12+1);
                         //*
 
@@ -530,7 +530,7 @@ static void nvme_process_sq_io(void *opaque, int index_poller)
                 ori_zone->d.wp += cmd.cdw12 + 1;
 
                 //* by HH: ori-zone open
-                zns_auto_transition_zone(n->namespaces);
+                zns_auto_transition_zone(n->namespaces, 4);
                 zns_advance_zone_wp(n->namespaces, ori_zone, cmd.cdw12+1);
                 //*
 
