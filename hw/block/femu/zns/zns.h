@@ -313,6 +313,11 @@ static inline void zns_aor_inc_open(NvmeNamespace *ns)
     FemuCtrl *n = ns->ctrl;
     assert(n->nr_open_zones >= 0);
     if (n->max_open_zones) {
+        while (n->nr_open_zones >= n->max_open_zones)
+        {
+            usleep(1000);
+        }
+        
         n->nr_open_zones++;
 
         if(n->nr_open_zones > n->max_open_zones)
