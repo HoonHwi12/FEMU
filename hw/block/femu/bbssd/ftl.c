@@ -1811,7 +1811,7 @@ static void *ftl_thread(void *arg)
             }
         }
 
-        if( slm.tt_lines > 0
+        if( false && slm.tt_lines > 0
             && (slc_wp*2 > slm.tt_lines*spp->pgs_per_blk*spp->nchs*spp->luns_per_ch)
             && ((float)(clock() - idle_timer)/CLOCKS_PER_SEC >= 1) ) 
             // if(slc_wp > 0
