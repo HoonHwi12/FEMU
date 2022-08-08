@@ -532,7 +532,7 @@ static void nvme_process_sq_io(void *opaque, int index_poller)
                 //* by HH: ori-zone open
                 zns_auto_transition_zone(n->namespaces, 4);
                 zns_advance_zone_wp(n->namespaces, ori_zone, cmd.cdw12+1, 2);
-                printf("advwp ");
+                if(slc_wp>0x30000) printf("advwp ");
                 //*
 
                 if (ori_zone->d.wp == zns_zone_wr_boundary(ori_zone))
@@ -561,7 +561,7 @@ static void nvme_process_sq_io(void *opaque, int index_poller)
                         assert(false);
                     }
                 }
-                printf("setslc ");
+                if(slc_wp>0x30000) printf("setslc ");
 
                 set_mapslc_ent(ssd, ((req_slba)/n->zone_capacity), req->slba, cmd.cdw12, req_slba);
             }
