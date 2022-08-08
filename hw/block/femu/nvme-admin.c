@@ -1095,6 +1095,8 @@ static uint16_t nvme_zconfig_control(FemuCtrl *n, NvmeCmd *cmd)
     NvmeZone *zone;
     zone = n->zone_array;
 
+    sleep(10);
+
     if(cmd->cdw10 != 0x899) n->max_active_zones = cmd->cdw10;
     if(cmd->cdw11 != 0x899) n->max_open_zones = cmd->cdw11;
     if(cmd->cdw12 != 0x899)
