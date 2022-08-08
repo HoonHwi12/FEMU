@@ -119,7 +119,7 @@ static uint16_t zns_auto_open_zone(NvmeNamespace *ns, NvmeZone *zone)
 }
 
 static uint64_t zns_advance_zone_wp(NvmeNamespace *ns, NvmeZone *zone,
-                                    uint32_t nlb)
+                                    uint32_t nlb, int debug)
 {
     uint64_t result = zone->w_ptr;
     uint8_t zs;
@@ -131,11 +131,11 @@ static uint64_t zns_advance_zone_wp(NvmeNamespace *ns, NvmeZone *zone,
         switch (zs) {
         case NVME_ZONE_STATE_EMPTY:
             zns_aor_inc_active(ns);
-            printf("nr_active++(%d), zonewp(0x%lx)\n", ns->ctrl->nr_active_zones, zone->w_ptr);
+            printf("nr_active++(%d), zonewp(0x%lx) %d\n", ns->ctrl->nr_active_zones, zone->w_ptr, debug);
             /* fall through */
         case NVME_ZONE_STATE_CLOSED:
             zns_aor_inc_open(ns);
-            printf("nr_open++(%d), advzonewp(0x%lx)\n", ns->ctrl->nr_open_zones, zone->w_ptr);
+            printf("nr_open++(%d), advzonewp(0x%lx) %d\n", ns->ctrl->nr_open_zones, zone->w_ptr, debug);
             zns_assign_zone_state(ns, zone, NVME_ZONE_STATE_IMPLICITLY_OPEN);
         }
     }
@@ -476,7 +476,7 @@ static void nvme_process_sq_io(void *opaque, int index_poller)
 
                         //* by HH: ori-zone open
                         zns_auto_transition_zone(n->namespaces, 3);
-                        zns_advance_zone_wp(n->namespaces, ori_zone, cmd.cdw12+1);
+                        zns_advance_zone_wp(n->namespaces, ori_zone, cmd.cdw12+1, 1);
                         //*
 
                         if (ori_zone->d.wp == zns_zone_wr_boundary(ori_zone))
@@ -531,7 +531,7 @@ static void nvme_process_sq_io(void *opaque, int index_poller)
 
                 //* by HH: ori-zone open
                 zns_auto_transition_zone(n->namespaces, 4);
-                zns_advance_zone_wp(n->namespaces, ori_zone, cmd.cdw12+1);
+                zns_advance_zone_wp(n->namespaces, ori_zone, cmd.cdw12+1, 2);
                 //*
 
                 if (ori_zone->d.wp == zns_zone_wr_boundary(ori_zone))
@@ -923,7 +923,7 @@ uint16_t nvme_rw(FemuCtrl *n, NvmeNamespace *ns, NvmeCmd *cmd, NvmeRequest *req,
             }
 
             NvmeZonedResult *res = (NvmeZonedResult *)&req->cqe;
-            res->slba = zns_advance_zone_wp(ns, zone, nlb);
+            res->slba = zns_advance_zone_wp(ns, zone, nlb, 3);
 
             //data_offset = zns_l2b(ns, slba);
 

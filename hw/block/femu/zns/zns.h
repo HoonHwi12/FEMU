@@ -320,7 +320,7 @@ static inline void zns_aor_inc_open(NvmeNamespace *ns)
         // }
         
         n->nr_open_zones++;
-        printf("nr_open++(%d)\n", ns->ctrl->nr_open_zones);
+        //printf("nr_open++(%d)\n", ns->ctrl->nr_open_zones);
 
         if(n->nr_open_zones > n->max_open_zones)
         {
