@@ -79,7 +79,7 @@ static void zns_auto_transition_zone(NvmeNamespace *ns, int debug)
              /* Automatically close this implicitly open zone */
             QTAILQ_REMOVE(&n->imp_open_zones, zone, entry);
             zns_aor_dec_open_debug(ns, 1);
-            printf("nr_open--(%d), zonewp(0x%lx) %d\n", ns->ctrl->nr_open_zones, zone->w_ptr, debug);
+            printf("nr_open--(%d), zonewp(0x%lx) %d ", ns->ctrl->nr_open_zones, zone->w_ptr, debug);
             zns_assign_zone_state(ns, zone, NVME_ZONE_STATE_CLOSED);
         }
     }
@@ -135,7 +135,7 @@ static uint64_t zns_advance_zone_wp(NvmeNamespace *ns, NvmeZone *zone,
             /* fall through */
         case NVME_ZONE_STATE_CLOSED:
             zns_aor_inc_open(ns);
-            printf("nr_open++(%d), advzonewp(0x%lx) %d\n", ns->ctrl->nr_open_zones, zone->w_ptr, debug);
+            printf("nr_open++(%d), advzonewp(0x%lx) %d ", ns->ctrl->nr_open_zones, zone->w_ptr, debug);
             zns_assign_zone_state(ns, zone, NVME_ZONE_STATE_IMPLICITLY_OPEN);
         }
     }
@@ -532,6 +532,7 @@ static void nvme_process_sq_io(void *opaque, int index_poller)
                 //* by HH: ori-zone open
                 zns_auto_transition_zone(n->namespaces, 4);
                 zns_advance_zone_wp(n->namespaces, ori_zone, cmd.cdw12+1, 2);
+                printf("advwp ");
                 //*
 
                 if (ori_zone->d.wp == zns_zone_wr_boundary(ori_zone))
@@ -560,6 +561,7 @@ static void nvme_process_sq_io(void *opaque, int index_poller)
                         assert(false);
                     }
                 }
+                printf("setslc ");
 
                 set_mapslc_ent(ssd, ((req_slba)/n->zone_capacity), req->slba, cmd.cdw12, req_slba);
             }

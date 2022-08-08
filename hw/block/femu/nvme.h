@@ -1505,7 +1505,7 @@ static inline uint16_t nvme_check_mdts(FemuCtrl *n, size_t len)
 //#define H_DEBUG_LEVEL1
 //#define H_DEBUG_LEVEL2
 #define H_DEBUG_NAND
-//#define H_DEBUG_NAND_VERBOSE
+#define H_DEBUG_NAND_VERBOSE
 //#define H_DEBUG_OVERPROVISION
 #define H_DEBUG_ADMIN
 //#define H_DEBUG_READ
