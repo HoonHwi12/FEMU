@@ -315,7 +315,10 @@ static inline uint8_t *zns_get_zd_extension(NvmeNamespace *ns, uint32_t zone_idx
 static inline void zns_aor_inc_open(NvmeNamespace *ns)
 {
     FemuCtrl *n = ns->ctrl;
-    assert(n->nr_open_zones >= 0);
+
+    //* by HH: disable asser for lock debugging
+    //assert(n->nr_open_zones >= 0);
+    
     if (n->max_open_zones) {
         // while (n->nr_open_zones > n->max_open_zones)
         // {
@@ -325,7 +328,7 @@ static inline void zns_aor_inc_open(NvmeNamespace *ns)
         
         pthread_mutex_lock(&lock_nr_open);
         n->nr_open_zones++;
-        h_log_zone("nr_open++(%d) ", n->nr_open_zones);
+        h_log_zone("nr_open++(%d)\n", n->nr_open_zones);
         pthread_mutex_unlock(&lock_nr_open);
         //printf("nr_open++(%d)\n", ns->ctrl->nr_open_zones);
 
@@ -410,7 +413,7 @@ static inline void zns_aor_inc_active(NvmeNamespace *ns)
     if (n->max_active_zones) {
         pthread_mutex_lock(&lock_nr_active);
         n->nr_active_zones++;
-        h_log_zone("nr_active++(%d) ", n->nr_active_zones);
+        h_log_zone("nr_active++(%d)\n", n->nr_active_zones);
         pthread_mutex_unlock(&lock_nr_active);
         assert(n->nr_active_zones <= n->max_active_zones);
     }
