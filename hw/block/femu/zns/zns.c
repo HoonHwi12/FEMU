@@ -12,7 +12,7 @@
 bool H_TEST_LOG = false;
 bool IN_SLC_GC = false;
 
-
+pthread_mutex_t lock_rslc[2048];
 struct slc_region rslc;
 struct w_pointer wpzone;
 struct line_mgmt slm;
@@ -21,8 +21,6 @@ pthread_mutex_t lock_nr_open;
 pthread_mutex_t lock_nr_active;
 pthread_mutex_t lock_slc_wp;
 uint64_t        slc_wp;
-uint64_t        TLC_START_LBA;
-uint64_t        NUM_SLC_BLK;
 //*
 
 static inline uint32_t zns_zone_idx(NvmeNamespace *ns, uint64_t slba)

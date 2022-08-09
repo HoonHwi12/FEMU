@@ -69,8 +69,6 @@ extern pthread_mutex_t lock_nr_open;
 extern pthread_mutex_t lock_nr_active;
 extern pthread_mutex_t lock_slc_wp;
 extern uint64_t        slc_wp;
-extern uint64_t        TLC_START_LBA;
-extern uint64_t        NUM_SLC_BLK;
 
 typedef struct slc_mapping {
     uint64_t zdslba;
@@ -318,7 +316,7 @@ static inline void zns_aor_inc_open(NvmeNamespace *ns)
 
     //* by HH: disable asser for lock debugging
     //assert(n->nr_open_zones >= 0);
-    
+
     if (n->max_open_zones) {
         // while (n->nr_open_zones > n->max_open_zones)
         // {
@@ -376,10 +374,8 @@ static inline void zns_aor_dec_open_debug(NvmeNamespace *ns, int debug_root)
 
         //assert(n->nr_open_zones > 0);
 
-        pthread_mutex_lock(&lock_nr_open);
         n->nr_open_zones--;
         h_log_zone("nr_open--(%d)\n", n->nr_open_zones);
-        pthread_mutex_unlock(&lock_nr_open);
     }
 
     //* by HH disable for lock test
@@ -426,8 +422,8 @@ static inline void zns_aor_dec_active(NvmeNamespace *ns)
         assert(n->nr_active_zones > 0);
         pthread_mutex_lock(&lock_nr_active);
         n->nr_active_zones--;
-        h_log_zone("nr_active--(%d)\n", n->nr_active_zones);
         pthread_mutex_unlock(&lock_nr_active);
+        h_log_zone("nr_active--(%d)\n", n->nr_active_zones);
 
         //* HH: wait
         // while (n->nr_active_zones < n->nr_open_zones)

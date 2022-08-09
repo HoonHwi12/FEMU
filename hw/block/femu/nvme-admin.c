@@ -1038,14 +1038,14 @@ static uint16_t nvme_print_flash_type(FemuCtrl *n, NvmeCmd *cmd)
     printf("LINE-info   ] ttLine: %d, Linesize: 0x%x pgs, TLCttline: %d, SLCttline: %d, TLC-full/free/victim: %d/%d/%d, SLC-full/free/victim: %d/%d/%d\n",
         spp->tt_lines, spp->nchs*spp->luns_per_ch*spp->pgs_per_blk, lm->tt_lines, slm.tt_lines, lm->full_line_cnt, lm->free_line_cnt, lm->victim_line_cnt,
         slm.full_line_cnt, slm.free_line_cnt, slm.victim_line_cnt);
-    printf("SLC-info    ] numZONE: %d, TLC_START: 0x%lx, NUM_SLC_BLK: 0x%lx\n",
-        n->num_zones, TLC_START_LBA, NUM_SLC_BLK);
+    printf("SLC-info    ] numZONE: %d\n",
+        n->num_zones);
     printf("zState-info ] zone_max_open: %d, zone_max_active: %d, zone_nr_open: %d, zone_nr_active: %d\n",
         n->max_open_zones, n->max_active_zones, n->nr_open_zones, n->nr_active_zones);
     printf("\n");
     printf("%15sslba %3scapacity %4swptr %6sstate %6stype %2sfalsh\n",
     "","","","","","");
-    for(int i=0; i < print_range; i++, zone++)
+    for(int i=0; i < n->num_zones; i++, zone++)
     {
         printf("   [zone#%2d] 0x%06lx | 0x%05lx | 0x%06lx | %12s | %6s | %s\n",
         i, zone->d.zslba, zone->d.zcap, zone->d.wp,

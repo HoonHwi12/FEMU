@@ -98,9 +98,6 @@ static void zns_init_zoned_state(NvmeNamespace *ns)
 
     zone = n->zone_array;
 
-    NUM_SLC_BLK = 0;
-    TLC_START_LBA = 0;
-
     for (i = 0; i < n->num_zones; i++, zone++) {
         if (start + zone_size > capacity) {
             zone_size = capacity - start;
@@ -366,7 +363,6 @@ static uint16_t zns_do_zone_op(NvmeNamespace *ns, NvmeZone *zone,
                 status = zns_bulk_proc_zone(ns, zone, proc_mask, op_hndlr,
                                              req);
                 if (status && status != NVME_NO_COMPLETE) {
-                    printf("here2\n");
                     goto out;
                 }
             }
@@ -376,7 +372,6 @@ static uint16_t zns_do_zone_op(NvmeNamespace *ns, NvmeZone *zone,
                 status = zns_bulk_proc_zone(ns, zone, proc_mask, op_hndlr,
                                              req);
                 if (status && status != NVME_NO_COMPLETE) {
-                    printf("here3\n");
                     goto out;
                 }
             }
@@ -385,7 +380,6 @@ static uint16_t zns_do_zone_op(NvmeNamespace *ns, NvmeZone *zone,
                 status = zns_bulk_proc_zone(ns, zone, proc_mask, op_hndlr,
                                              req);
                 if (status && status != NVME_NO_COMPLETE) {
-                    printf("here4\n");
                     goto out;
                 }
             }
@@ -395,7 +389,6 @@ static uint16_t zns_do_zone_op(NvmeNamespace *ns, NvmeZone *zone,
                 status = zns_bulk_proc_zone(ns, zone, proc_mask, op_hndlr,
                                              req);
                 if (status && status != NVME_NO_COMPLETE) {
-                    printf("here5\n");
                     goto out;
                 }
             }
@@ -406,7 +399,6 @@ static uint16_t zns_do_zone_op(NvmeNamespace *ns, NvmeZone *zone,
                 status = zns_bulk_proc_zone(ns, zone, proc_mask, op_hndlr,
                                              req);
                 if (status && status != NVME_NO_COMPLETE) {
-                    printf("here6\n");
                     goto out;
                 }
             }

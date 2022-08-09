@@ -146,7 +146,7 @@ void ssd_init_lines(FemuCtrl *n, struct ssd *ssd)
     slm.tt_lines = 16; // Line size: nch*nlun*npg -> 4096 pgs per line
     slm.lines = g_malloc0(sizeof(struct line) * spp->blks_per_pl);
 
-    h_log("SLC line: %d, NUM_SLC_BLK: %ld, spp->blks_per_line: %d\n", slm.tt_lines, NUM_SLC_BLK, spp->blks_per_line);
+    h_log("SLC line: %d, spp->blks_per_line: %d\n", slm.tt_lines, spp->blks_per_line);
 
     QTAILQ_INIT(&slm.free_line_list);
     QTAILQ_INIT(&slm.full_line_list);
