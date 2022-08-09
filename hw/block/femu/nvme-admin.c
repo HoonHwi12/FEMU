@@ -1045,7 +1045,7 @@ static uint16_t nvme_print_flash_type(FemuCtrl *n, NvmeCmd *cmd)
     printf("\n");
     printf("%15sslba %3scapacity %4swptr %6sstate %6stype %2sfalsh\n",
     "","","","","","");
-    for(int i=0; i < n->num_zones; i++, zone++)
+    for(int i=0; i < print_range; i++, zone++)
     {
         printf("   [zone#%2d] 0x%06lx | 0x%05lx | 0x%06lx | %12s | %6s | %s\n",
         i, zone->d.zslba, zone->d.zcap, zone->d.wp,
@@ -1110,8 +1110,33 @@ static uint16_t nvme_zconfig_control(FemuCtrl *n, NvmeCmd *cmd)
         }
         else
         {
+            n->memsz += (slm.tt_lines * spp->secsz * spp->secs_per_pg * spp->pgs_per_blk * spp->pls_per_lun * spp->luns_per_ch * spp->nchs / 1024 / 1024); 
+            
             slm.tt_lines = cmd->cdw12;
-            //lm->tt_lines = spp->blks_per_pl - slm.tt_lines;
+            lm->tt_lines = spp->blks_per_pl - slm.tt_lines;
+            ftl_assert(lm->tt_lines+slm.tt_lines == spp->tt_lines);
+            
+            n->memsz -= (slm.tt_lines * spp->secsz * spp->secs_per_pg * spp->pgs_per_blk * spp->pls_per_lun * spp->luns_per_ch * spp->nchs / 1024 / 1024);
+            int64_t bs_size = ((uint64_t)n->memsz * 1024 * 1024);
+            n->ns_size = bs_size / (uint64_t)n->num_namespaces;
+
+            //* Init NS
+            NvmeNamespace *ns = n->namespaces;
+            ns->size = n->ns_size;
+            
+            NvmeIdNs *id_ns = &ns->id_ns;
+            uint64_t num_blks;
+            int lba_index;
+
+            //nvme_ns_init_identify(n, id_ns);
+
+            lba_index = NVME_ID_NS_FLBAS_INDEX(ns->id_ns.flbas);
+            num_blks = n->ns_size / ((1 << id_ns->lbaf[lba_index].lbads));
+            id_ns->nuse = id_ns->ncap = id_ns->nsze = cpu_to_le64(num_blks);
+
+            ns->ns_blks = ns_blks(ns, lba_index);      
+
+            printf("meesz: %lx GB\n", n->ns_size/1024/1024);
         }
     }
     if(cmd->cdw13 != 0x899 && cmd->cdw13 <n->num_zones)

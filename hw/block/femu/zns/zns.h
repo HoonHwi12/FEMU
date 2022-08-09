@@ -324,7 +324,7 @@ static inline void zns_aor_inc_open(NvmeNamespace *ns)
         //     usleep(1000);
         // }
         
-        pthread_mutex_lock(&lock_nr_open);
+        //pthread_mutex_lock(&lock_nr_open);
         n->nr_open_zones++;
         h_log_zone("nr_open++(%d)\n", n->nr_open_zones);
         pthread_mutex_unlock(&lock_nr_open);
@@ -394,7 +394,7 @@ static inline void zns_aor_dec_open(NvmeNamespace *ns)
 
         assert(n->nr_open_zones > 0);
 
-        pthread_mutex_lock(&lock_nr_open);
+        //pthread_mutex_lock(&lock_nr_open);
         n->nr_open_zones--;
         h_log_zone("nr_open--(%d)\n", n->nr_open_zones);
         pthread_mutex_unlock(&lock_nr_open);
@@ -407,7 +407,7 @@ static inline void zns_aor_inc_active(NvmeNamespace *ns)
     FemuCtrl *n = ns->ctrl;
     assert(n->nr_active_zones >= 0);
     if (n->max_active_zones) {
-        pthread_mutex_lock(&lock_nr_active);
+        //pthread_mutex_lock(&lock_nr_active);
         n->nr_active_zones++;
         h_log_zone("nr_active++(%d)\n", n->nr_active_zones);
         pthread_mutex_unlock(&lock_nr_active);
@@ -420,7 +420,7 @@ static inline void zns_aor_dec_active(NvmeNamespace *ns)
     FemuCtrl *n = ns->ctrl;
     if (n->max_active_zones) {
         assert(n->nr_active_zones > 0);
-        pthread_mutex_lock(&lock_nr_active);
+        //pthread_mutex_lock(&lock_nr_active);
         n->nr_active_zones--;
         pthread_mutex_unlock(&lock_nr_active);
         h_log_zone("nr_active--(%d)\n", n->nr_active_zones);
