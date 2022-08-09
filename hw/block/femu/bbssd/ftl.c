@@ -145,10 +145,6 @@ void ssd_init_lines(FemuCtrl *n, struct ssd *ssd)
 
     slm.tt_lines = 16; // Line size: nch*nlun*npg -> 4096 pgs per line
     slm.lines = g_malloc0(sizeof(struct line) * spp->blks_per_pl);
-    
-    n->memsz -= (slm.tt_lines * spp->secsz * spp->secs_per_pg * spp->pgs_per_blk * spp->pls_per_lun * spp->luns_per_ch * spp->nchs / 1024 / 1024);
-    int64_t bs_size = ((uint64_t)n->memsz * 1024 * 1024);
-    n->ns_size = bs_size / (uint64_t)n->num_namespaces;
 
     h_log("SLC line: %d, spp->blks_per_line: %d\n", slm.tt_lines, spp->blks_per_line);
 

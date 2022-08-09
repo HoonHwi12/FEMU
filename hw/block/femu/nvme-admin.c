@@ -1110,33 +1110,33 @@ static uint16_t nvme_zconfig_control(FemuCtrl *n, NvmeCmd *cmd)
         }
         else
         {
-            n->memsz += (slm.tt_lines * spp->secsz * spp->secs_per_pg * spp->pgs_per_blk * spp->pls_per_lun * spp->luns_per_ch * spp->nchs / 1024 / 1024); 
+            //n->memsz += (slm.tt_lines * spp->secsz * spp->secs_per_pg * spp->pgs_per_blk * spp->pls_per_lun * spp->luns_per_ch * spp->nchs / 1024 / 1024); 
             
             slm.tt_lines = cmd->cdw12;
             lm->tt_lines = spp->blks_per_pl - slm.tt_lines;
             ftl_assert(lm->tt_lines+slm.tt_lines == spp->tt_lines);
             
-            n->memsz -= (slm.tt_lines * spp->secsz * spp->secs_per_pg * spp->pgs_per_blk * spp->pls_per_lun * spp->luns_per_ch * spp->nchs / 1024 / 1024);
-            int64_t bs_size = ((uint64_t)n->memsz * 1024 * 1024);
-            n->ns_size = bs_size / (uint64_t)n->num_namespaces;
+            // n->memsz -= (slm.tt_lines * spp->secsz * spp->secs_per_pg * spp->pgs_per_blk * spp->pls_per_lun * spp->luns_per_ch * spp->nchs / 1024 / 1024);
+            // int64_t bs_size = ((uint64_t)n->memsz * 1024 * 1024);
+            // n->ns_size = bs_size / (uint64_t)n->num_namespaces;
 
-            //* Init NS
-            NvmeNamespace *ns = n->namespaces;
-            ns->size = n->ns_size;
+            // //* Init NS
+            // NvmeNamespace *ns = n->namespaces;
+            // ns->size = n->ns_size;
             
-            NvmeIdNs *id_ns = &ns->id_ns;
-            uint64_t num_blks;
-            int lba_index;
+            // NvmeIdNs *id_ns = &ns->id_ns;
+            // uint64_t num_blks;
+            // int lba_index;
 
-            //nvme_ns_init_identify(n, id_ns);
+            // //nvme_ns_init_identify(n, id_ns);
 
-            lba_index = NVME_ID_NS_FLBAS_INDEX(ns->id_ns.flbas);
-            num_blks = n->ns_size / ((1 << id_ns->lbaf[lba_index].lbads));
-            id_ns->nuse = id_ns->ncap = id_ns->nsze = cpu_to_le64(num_blks);
+            // lba_index = NVME_ID_NS_FLBAS_INDEX(ns->id_ns.flbas);
+            // num_blks = n->ns_size / ((1 << id_ns->lbaf[lba_index].lbads));
+            // id_ns->nuse = id_ns->ncap = id_ns->nsze = cpu_to_le64(num_blks);
 
-            ns->ns_blks = ns_blks(ns, lba_index);      
+            // ns->ns_blks = ns_blks(ns, lba_index);      
 
-            printf("meesz: %lx GB\n", n->ns_size/1024/1024);
+            // printf("meesz: %lx GB\n", n->ns_size/1024/1024);
         }
     }
     if(cmd->cdw13 != 0x899 && cmd->cdw13 <n->num_zones)
