@@ -1,5 +1,6 @@
 
 #include "./nvme.h"
+#include <pthread.h>
 
 static uint16_t nvme_io_cmd(FemuCtrl *n, NvmeCmd *cmd, NvmeRequest *req);
 
@@ -80,7 +81,7 @@ static void zns_auto_transition_zone(NvmeNamespace *ns, int debug)
             QTAILQ_REMOVE(&n->imp_open_zones, zone, entry);
             zns_aor_dec_open_debug(ns, 1);
             zns_assign_zone_state(ns, zone, NVME_ZONE_STATE_CLOSED);
-            printf("nr_open--(%d), zonewp(0x%lx) %d\n", ns->ctrl->nr_open_zones, zone->w_ptr, debug);
+            //h_log_zone("nr_open--(%d), zonewp(0x%lx) %d\n", ns->ctrl->nr_open_zones, zone->w_ptr, debug);
         }
     }
 }
@@ -131,11 +132,11 @@ static uint64_t zns_advance_zone_wp(NvmeNamespace *ns, NvmeZone *zone,
         switch (zs) {
         case NVME_ZONE_STATE_EMPTY:
             zns_aor_inc_active(ns);
-            printf("nr_active++(%d), zonewp(0x%lx) %d\n", ns->ctrl->nr_active_zones, zone->w_ptr, debug);
+            //h_log_zone("nr_active++(%d), zonewp(0x%lx) %d\n", ns->ctrl->nr_active_zones, zone->w_ptr, debug);
             /* fall through */
         case NVME_ZONE_STATE_CLOSED:
             zns_aor_inc_open(ns);
-            printf("nr_open++(%d), advzonewp(0x%lx) %d ", ns->ctrl->nr_open_zones, zone->w_ptr, debug);
+            //h_log_zone("nr_open++(%d), advzonewp(0x%lx) %d ", ns->ctrl->nr_open_zones, zone->w_ptr, debug);
             zns_assign_zone_state(ns, zone, NVME_ZONE_STATE_IMPLICITLY_OPEN);
         }
     }
@@ -312,12 +313,12 @@ static void zns_finalize_zoned_write(NvmeNamespace *ns, NvmeRequest *req,
         case NVME_ZONE_STATE_IMPLICITLY_OPEN:
         case NVME_ZONE_STATE_EXPLICITLY_OPEN:
             zns_aor_dec_open_debug(ns, 2);
-            printf("write slc: nr_open--(%d)\n", ns->ctrl->nr_open_zones);
+            //h_log_zone("write slc: nr_open--(%d)\n", ns->ctrl->nr_open_zones);
 
             /* fall through */
         case NVME_ZONE_STATE_CLOSED:
             zns_aor_dec_active(ns);
-            printf("nr_active--(%d), zonewp(0x%lx)\n", ns->ctrl->nr_active_zones, zone->w_ptr);
+            //h_log_zone("nr_active--(%d), zonewp(0x%lx)\n", ns->ctrl->nr_active_zones, zone->w_ptr);
             /* fall through */
         case NVME_ZONE_STATE_EMPTY:
 
@@ -436,7 +437,7 @@ static void nvme_process_sq_io(void *opaque, int index_poller)
             //     zone_index++;
             //     zone++;
             // }
-            uint64_t line_cap = ((uint32_t)slm.tt_lines*(uint32_t)spp->secs_per_pg*(uint32_t)spp->pgs_per_blk*(uint32_t)spp->nchs*(uint32_t)spp->luns_per_ch) - 0x20000;
+            uint64_t line_cap = ((uint32_t)slm.tt_lines*(uint32_t)spp->secs_per_pg*(uint32_t)spp->pgs_per_blk*(uint32_t)spp->nchs*(uint32_t)spp->luns_per_ch);// - 0x20000;
 
             if( slm.tt_lines == 0
                 || ( ((slc_wp + cmd.cdw12 + 1)) >= (line_cap - (2*n->num_zones)) )
@@ -468,7 +469,11 @@ static void nvme_process_sq_io(void *opaque, int index_poller)
 
                         // cmd.cdw10 = slc_wp & 0xFFFFFFFF;
                         // cmd.cdw11 = slc_wp >> 32;
-                        slc_wp += cmd.cdw12+1;                   
+
+                        pthread_mutex_lock(&lock_slc_wp);
+                        slc_wp += cmd.cdw12+1; 
+                        pthread_mutex_unlock(&lock_slc_wp);
+                                                        
 
                         req->cmd.cdw15 = 0x89; //slc flag
 
@@ -486,12 +491,12 @@ static void nvme_process_sq_io(void *opaque, int index_poller)
                             case NVME_ZONE_STATE_IMPLICITLY_OPEN:
                             case NVME_ZONE_STATE_EXPLICITLY_OPEN:
                                 zns_aor_dec_open_debug(n->namespaces, 3);
-                                printf("write slc: nr_open--, ori_zone->d.wp(0x%lx)\n",ori_zone->d.wp);
+                                //h_log_zone("write slc: nr_open--, ori_zone->d.wp(0x%lx)\n",ori_zone->d.wp);
 
                                 /* fall through */
                             case NVME_ZONE_STATE_CLOSED:
                                 zns_aor_dec_active(n->namespaces);
-                                printf("write slc: nr_active--\n");
+                                //h_log_zone("write slc: nr_active--\n");
                                 /* fall through */
                             case NVME_ZONE_STATE_EMPTY:
 
@@ -523,7 +528,10 @@ static void nvme_process_sq_io(void *opaque, int index_poller)
                 
                 // cmd.cdw10 = slc_wp & 0xFFFFFFFF;
                 // cmd.cdw11 = slc_wp >> 32;
-                slc_wp += cmd.cdw12+1;
+
+                pthread_mutex_lock(&lock_slc_wp);
+                slc_wp += cmd.cdw12+1; 
+                pthread_mutex_unlock(&lock_slc_wp);
 
                 req->cmd.cdw15 = 0x89; //slc flag
 
@@ -540,12 +548,12 @@ static void nvme_process_sq_io(void *opaque, int index_poller)
                     {
                     case NVME_ZONE_STATE_IMPLICITLY_OPEN:
                     case NVME_ZONE_STATE_EXPLICITLY_OPEN:
-                        printf("write slc: nr_open--, ori_zone->d.wp(0x%lx)\n",ori_zone->d.wp);
+                        //h_log_zone("write slc: nr_open--, ori_zone->d.wp(0x%lx)\n",ori_zone->d.wp);
                         zns_aor_dec_open_debug(n->namespaces, 4);                        
 
                         /* fall through */
                     case NVME_ZONE_STATE_CLOSED:
-                        printf("write slc: nr_active--\n");
+                        //h_log_zone("write slc: nr_active--\n");
                         zns_aor_dec_active(n->namespaces);
                         
                         /* fall through */
@@ -564,12 +572,14 @@ static void nvme_process_sq_io(void *opaque, int index_poller)
 
                 set_mapslc_ent(ssd, ((req_slba)/n->zone_capacity), req->slba, cmd.cdw12, req_slba);
             }
+
             req->slba = cmd.cdw10 | ((uint64_t)cmd.cdw11<<32);
             req->cmd.cdw10 = cmd.cdw10;
             req->cmd.cdw11 = cmd.cdw11;
         }
         else if(cmd.opcode == NVME_CMD_READ)
         {
+            if(H_TEST_LOG) printf("process sq io read!\n");
             //cmd.cdw10 += TLC_START_LBA & 0xFFFFFFFF;
             //cmd.cdw11 += TLC_START_LBA >> 32;
 
@@ -611,8 +621,9 @@ static void nvme_process_sq_io(void *opaque, int index_poller)
         status = nvme_io_cmd(n, &cmd, req);
         if (1 && status == NVME_SUCCESS) {
             req->status = status;
-
+if(H_TEST_LOG && cmd.opcode != NVME_CMD_WRITE) printf("read femu ring enqueu\n");
             int rc = femu_ring_enqueue(n->to_ftl[index_poller], (void *)&req, 1);
+if(H_TEST_LOG && cmd.opcode != NVME_CMD_WRITE) printf("read femu ring enqueu finish\n");
             if (rc != 1) {
                 femu_err("enqueue failed, ret=%d\n", rc);
             }
@@ -912,7 +923,7 @@ uint16_t nvme_rw(FemuCtrl *n, NvmeNamespace *ns, NvmeCmd *cmd, NvmeRequest *req,
                 femu_err("slba: 0x%lx, nlb: 0x%x\n", slba, nlb);
                 return NVME_INVALID_FIELD;
             }
-
+\
             if (zns_auto_open_zone(ns, zone)) {
                 femu_err("*********ZONE Open Error*********\n");
                 return NVME_INVALID_FIELD;
@@ -924,7 +935,7 @@ uint16_t nvme_rw(FemuCtrl *n, NvmeNamespace *ns, NvmeCmd *cmd, NvmeRequest *req,
             }
 
             NvmeZonedResult *res = (NvmeZonedResult *)&req->cqe;
-            res->slba = zns_advance_zone_wp(ns, zone, nlb, 3);
+            res->slba = zns_advance_zone_wp(ns, zone, nlb, 3);         
 
             //data_offset = zns_l2b(ns, slba);
 
@@ -949,12 +960,16 @@ uint16_t nvme_rw(FemuCtrl *n, NvmeNamespace *ns, NvmeCmd *cmd, NvmeRequest *req,
 
     ///////////////////////////////////////////////////////////////////////////
     ret = backend_rw(n->mbe, &req->qsg, &data_offset, req->is_write);
+    
     if (ret) {
         femu_err("backend rw error\n");
         return NVME_DNR;
     }
 
-    if(req->is_write && req->cmd.cdw15 != 0x89) zns_finalize_zoned_write(ns, req, false);
+    if(req->is_write && req->cmd.cdw15 != 0x89)
+    {
+        zns_finalize_zoned_write(ns, req, false); 
+    }
 
     return NVME_SUCCESS;
 }

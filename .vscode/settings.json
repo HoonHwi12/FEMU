@@ -6,6 +6,9 @@
         "throttle-groups.h": "c",
         "nvme.h": "c",
         "nand.h": "c",
-        "pqueue.h": "c"
+        "pqueue.h": "c",
+        "atomic.h": "c",
+        "pthread.h": "c",
+        "qdev-properties.h": "c"
     }
 }

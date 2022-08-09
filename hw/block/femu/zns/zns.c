@@ -6,13 +6,20 @@
 
 //* by HH
 #include "../bbssd/ftl.h"
+#include "../../../../include/qemu/atomic.h"
+#include <pthread.h>
+
 bool H_TEST_LOG = false;
 bool IN_SLC_GC = false;
+
 
 struct slc_region rslc;
 struct w_pointer wpzone;
 struct line_mgmt slm;
 
+pthread_mutex_t lock_nr_open;
+pthread_mutex_t lock_nr_active;
+pthread_mutex_t lock_slc_wp;
 uint64_t        slc_wp;
 uint64_t        TLC_START_LBA;
 uint64_t        NUM_SLC_BLK;
@@ -585,7 +592,7 @@ static uint16_t zns_open_zone(NvmeNamespace *ns, NvmeZone *zone,
             return status;
         }
         zns_aor_inc_open(ns);
-        printf("nr_open++(%d), zonewp(0x%lx)\n", ns->ctrl->nr_open_zones, zone->w_ptr);
+        h_log_zone("nr_open++(%d), zonewp(0x%lx)\n", ns->ctrl->nr_open_zones, zone->w_ptr);
     case NVME_ZONE_STATE_IMPLICITLY_OPEN:
         zns_assign_zone_state(ns, zone, NVME_ZONE_STATE_EXPLICITLY_OPEN);
     case NVME_ZONE_STATE_EXPLICITLY_OPEN:

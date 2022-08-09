@@ -285,6 +285,7 @@ void virtio_blk_data_plane_stop(VirtIODevice *vdev)
 
     /* Better luck next time. */
     if (vblk->dataplane_disabled) {
+        printf("virtio_blk_data_plane disabled!\n");
         vblk->dataplane_disabled = false;
         vblk->dataplane_started = false;
         return;
@@ -312,6 +313,7 @@ void virtio_blk_data_plane_stop(VirtIODevice *vdev)
     /* Clean up guest notifier (irq) */
     k->set_guest_notifiers(qbus->parent, nvqs, false);
 
+    printf("virtio_blk_data_plane_stop!\n");
     vblk->dataplane_started = false;
     s->stopping = false;
 }

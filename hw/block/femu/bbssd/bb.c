@@ -171,7 +171,13 @@ static void zns_init_zone_identify(FemuCtrl *n, NvmeNamespace *ns, int lba_index
         tbl->slcmap = g_new0(slc_mapping, n->zone_capacity);
         tbl++;
     }
-    slc_wp = 0;
+    pthread_mutex_init(&lock_nr_open, NULL);
+    pthread_mutex_init(&lock_nr_active, NULL);
+    pthread_mutex_init(&lock_slc_wp, NULL);
+    
+    pthread_mutex_lock(&lock_slc_wp);
+    slc_wp = 0;  
+    pthread_mutex_unlock(&lock_slc_wp);
 
     h_log("zns init tbl end\n");
     zns_init_zoned_state(ns);
@@ -448,7 +454,7 @@ static uint16_t zns_open_zone(NvmeNamespace *ns, NvmeZone *zone,
             return status;
         }
         zns_aor_inc_open(ns);
-        printf("nr_open++(%d), bbzonewp(0x%lx)\n", ns->ctrl->nr_open_zones, zone->w_ptr);
+        //h_log_zone("nr_open++(%d), bbzonewp(0x%lx)\n", ns->ctrl->nr_open_zones, zone->w_ptr);
     case NVME_ZONE_STATE_IMPLICITLY_OPEN:
         zns_assign_zone_state(ns, zone, NVME_ZONE_STATE_EXPLICITLY_OPEN);
     case NVME_ZONE_STATE_EXPLICITLY_OPEN:
@@ -639,7 +645,7 @@ static uint16_t zns_zone_mgmt_send(FemuCtrl *n, NvmeRequest *req)
     default:
         printf("status=nvme_invalid_field\n");
         status = NVME_INVALID_FIELD;
-    }
+    } 
 
     if (status) {
         printf("status = nvme_dnr\n");

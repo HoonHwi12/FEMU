@@ -201,6 +201,7 @@ void virtio_scsi_dataplane_stop(VirtIODevice *vdev)
 
     /* Better luck next time. */
     if (s->dataplane_fenced) {
+        printf("virtio_scsi_dataplane_stop fenced!\n");
         s->dataplane_fenced = false;
         s->dataplane_started = false;
         return;
@@ -220,6 +221,8 @@ void virtio_scsi_dataplane_stop(VirtIODevice *vdev)
 
     /* Clean up guest notifier (irq) */
     k->set_guest_notifiers(qbus->parent, vs->conf.num_queues + 2, false);
+
+    printf("virtio_scsi_dataplane_stop!\n");
     s->dataplane_stopping = false;
     s->dataplane_started = false;
 }

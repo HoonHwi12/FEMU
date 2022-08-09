@@ -64,6 +64,10 @@ enum NvmeZoneSendAction {
 extern struct slc_region rslc;
 extern struct w_pointer wpzone;
 extern struct line_mgmt slm;
+
+extern pthread_mutex_t lock_nr_open;
+extern pthread_mutex_t lock_nr_active;
+extern pthread_mutex_t lock_slc_wp;
 extern uint64_t        slc_wp;
 extern uint64_t        TLC_START_LBA;
 extern uint64_t        NUM_SLC_BLK;
@@ -319,15 +323,19 @@ static inline void zns_aor_inc_open(NvmeNamespace *ns)
         //     usleep(1000);
         // }
         
+        pthread_mutex_lock(&lock_nr_open);
         n->nr_open_zones++;
+        h_log_zone("nr_open++(%d) ", n->nr_open_zones);
+        pthread_mutex_unlock(&lock_nr_open);
         //printf("nr_open++(%d)\n", ns->ctrl->nr_open_zones);
 
-        if(n->nr_open_zones > n->max_open_zones)
-        {
-            printf("warning! nr_open_zones: %d, max_open_zones: %d, decline open zones\n", n->nr_open_zones, n->max_open_zones);
-            n->nr_open_zones--;
-            //sleep(10000);
-        }
+        //* by HH: decline
+        // if(n->nr_open_zones > n->max_open_zones)
+        // {
+        //     printf("warning! nr_open_zones: %d, max_open_zones: %d, decline open zones\n", n->nr_open_zones, n->max_open_zones);
+        //     n->nr_open_zones--;
+        //     //sleep(10000);
+        // }
         assert(n->nr_open_zones <= n->max_open_zones);
     }
 }
@@ -344,13 +352,35 @@ static inline void zns_aor_dec_open_debug(NvmeNamespace *ns, int debug_root)
         // }
         if(n->nr_open_zones <= 0)
         {
-            printf("Error! n->nr_open_zones=%d...root function: %d\n", n->nr_open_zones, debug_root);
-            sleep(10000);
-            assert(n->nr_open_zones > 0);
+            int temp_nr_open=0;
+            NvmeZone *zone = n->zone_array;
+            for(int i = 0; i < n->num_zones; i++, zone++)
+            {
+                switch (zns_get_zone_state(zone)) {
+                case NVME_ZONE_STATE_EXPLICITLY_OPEN:
+                    temp_nr_open++;
+                case NVME_ZONE_STATE_IMPLICITLY_OPEN:
+                    temp_nr_open++;
+                default:
+                    ;
+                }
+            }
+            printf("DEBUG! n->nr_open_zones=%d...root function: %d, temp_nr_open:%d\n",
+                n->nr_open_zones, debug_root, temp_nr_open);
+
+            //sleep(10000);
         }
+
+        //assert(n->nr_open_zones > 0);
+
+        pthread_mutex_lock(&lock_nr_open);
         n->nr_open_zones--;
+        h_log_zone("nr_open--(%d)\n", n->nr_open_zones);
+        pthread_mutex_unlock(&lock_nr_open);
     }
-    assert(n->nr_open_zones >= 0);
+
+    //* by HH disable for lock test
+    //assert(n->nr_open_zones >= 0);
 }
 
 static inline void zns_aor_dec_open(NvmeNamespace *ns)
@@ -359,12 +389,16 @@ static inline void zns_aor_dec_open(NvmeNamespace *ns)
     if (n->max_open_zones) {
         if(n->nr_open_zones <= 0)
         {
-            printf("Error! n->nr_open_zones=%d\n", n->nr_open_zones);
-            if(system("nvme hoon print-zones /dev/nvme0n1 -r 32")) printf("system command failed\n");
-
-            assert(n->nr_open_zones > 0);
+            printf("DEBUG! n->nr_open_zones=%d\n", n->nr_open_zones);
+            sleep(10000);
         }
+
+        assert(n->nr_open_zones > 0);
+
+        pthread_mutex_lock(&lock_nr_open);
         n->nr_open_zones--;
+        h_log_zone("nr_open--(%d)\n", n->nr_open_zones);
+        pthread_mutex_unlock(&lock_nr_open);
     }
     assert(n->nr_open_zones >= 0);
 }
@@ -374,7 +408,10 @@ static inline void zns_aor_inc_active(NvmeNamespace *ns)
     FemuCtrl *n = ns->ctrl;
     assert(n->nr_active_zones >= 0);
     if (n->max_active_zones) {
+        pthread_mutex_lock(&lock_nr_active);
         n->nr_active_zones++;
+        h_log_zone("nr_active++(%d) ", n->nr_active_zones);
+        pthread_mutex_unlock(&lock_nr_active);
         assert(n->nr_active_zones <= n->max_active_zones);
     }
 }
@@ -384,7 +421,10 @@ static inline void zns_aor_dec_active(NvmeNamespace *ns)
     FemuCtrl *n = ns->ctrl;
     if (n->max_active_zones) {
         assert(n->nr_active_zones > 0);
+        pthread_mutex_lock(&lock_nr_active);
         n->nr_active_zones--;
+        h_log_zone("nr_active--(%d)\n", n->nr_active_zones);
+        pthread_mutex_unlock(&lock_nr_active);
 
         //* HH: wait
         // while (n->nr_active_zones < n->nr_open_zones)
@@ -394,7 +434,7 @@ static inline void zns_aor_dec_active(NvmeNamespace *ns)
         // }
         if(n->nr_active_zones < n->nr_open_zones)
         {
-            printf("Error! nr_active_zones: %d, nr_open_zones: %d\n", n->nr_active_zones, n->nr_open_zones);
+            printf("DEBUG! nr_active_zones: %d, nr_open_zones: %d\n", n->nr_active_zones, n->nr_open_zones);
             sleep(10000);
         } 
         //*

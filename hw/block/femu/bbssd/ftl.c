@@ -328,7 +328,7 @@ static void slc_advance_write_pointer(struct ssd *ssd)
 {
     struct write_pointer *wpp = &ssd->wp;
     struct ssdparams *spp = &ssd->sp;
-    uint64_t line_size = spp->secs_per_pg * spp->pgs_per_blk * spp-> pls_per_lun * spp->luns_per_ch * spp->nchs;
+    //uint64_t line_size = spp->secs_per_pg * spp->pgs_per_blk * spp-> pls_per_lun * spp->luns_per_ch * spp->nchs;
 
     check_addr(wpp->ch, spp->nchs);
 
@@ -362,10 +362,11 @@ static void slc_advance_write_pointer(struct ssd *ssd)
                 }
 
                 //* HH: slc_wp align
-                if(slc_wp % line_size != 0)
-                {
-                    slc_wp = (slc_wp / line_size) * line_size + line_size;
-                }
+                // if(slc_wp % line_size != 0)
+                // {
+                //     slc_wp = (slc_wp / line_size) * line_size + line_size;
+                // }
+
                 /* current line is used up, pick another empty line */
                 check_addr(wpp->blk, spp->blks_per_pl);
                 wpp->curline = NULL;
@@ -1372,7 +1373,11 @@ static int do_slc_gc(FemuCtrl *n, struct ssd *ssd)
 
         if (!gc_line) {
             printf("no GC line selected!! err\n");
-            slc_wp = 0;
+
+            pthread_mutex_lock(&lock_slc_wp);
+            slc_wp = 0;  
+            pthread_mutex_unlock(&lock_slc_wp);
+
             return -1;
         }
 
@@ -1404,7 +1409,9 @@ static int do_slc_gc(FemuCtrl *n, struct ssd *ssd)
         QTAILQ_INSERT_TAIL(&slm.free_line_list, gc_line, entry);
     }
 
-    slc_wp = 0;
+    pthread_mutex_lock(&lock_slc_wp);
+    slc_wp = 0;  
+    pthread_mutex_unlock(&lock_slc_wp);
 
     IN_SLC_GC = false;
 
