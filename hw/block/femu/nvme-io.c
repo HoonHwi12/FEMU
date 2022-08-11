@@ -419,7 +419,7 @@ static void nvme_process_sq_io(void *opaque, int index_poller)
         memcpy(&req->cmd, &cmd, sizeof(NvmeCmd));
 
        //* by HH
-        if(cmd.opcode == NVME_CMD_WRITE)
+        if(cmd.opcode == NVME_CMD_WRITE ||cmd.opcode == NVME_CMD_ZONE_APPEND)
         {
             req->slba = cmd.cdw10 | ((uint64_t)cmd.cdw11<<32);
             req->cmd.cdw10 = req->slba & 0xFFFFFFFF;
@@ -453,7 +453,7 @@ static void nvme_process_sq_io(void *opaque, int index_poller)
             uint64_t line_cap = ((uint32_t)slm.tt_lines*(uint32_t)spp->secs_per_pg*(uint32_t)spp->pgs_per_blk*(uint32_t)spp->nchs*(uint32_t)spp->luns_per_ch);// - 0x20000;
 
             pthread_mutex_lock(&lock_slc_wp);
-            if( slm.tt_lines == 0
+            if( cmd.opcode == NVME_CMD_ZONE_APPEND || slm.tt_lines == 0
                 || ( ((slc_wp + cmd.cdw12 + 1)) >= (line_cap - (2*n->num_zones)) )
                 || IN_SLC_GC )
             {
@@ -463,7 +463,8 @@ static void nvme_process_sq_io(void *opaque, int index_poller)
                 //slc_mapping *map_tbl = tbl->slcmap;
 
                 //if((slc_wp + cmd.cdw12) < (zone->d.zslba + zone->d.zcap))
-                if( (slm.tt_lines > 0) && ((slc_wp + cmd.cdw12 + 1)) < line_cap && !IN_SLC_GC )
+                if( cmd.opcode != NVME_CMD_ZONE_APPEND
+                     && (slm.tt_lines > 0) && ((slc_wp + cmd.cdw12 + 1)) < line_cap && !IN_SLC_GC )
                 {
                     h_log_provision("Over-provisioning? zone[%ld] SLC Data: %ld, DataRemain=%ld\n",
                         ((req->slba)/n->zone_capacity), tbl->num_slc_data, tbl->num_slc_data%3);
@@ -944,7 +945,7 @@ uint16_t nvme_rw(FemuCtrl *n, NvmeNamespace *ns, NvmeCmd *cmd, NvmeRequest *req,
                 femu_err("slba: 0x%lx, nlb: 0x%x\n", slba, nlb);
                 return NVME_INVALID_FIELD;
             }
-\
+
             if (zns_auto_open_zone(ns, zone)) {
                 femu_err("*********ZONE Open Error*********\n");
                 return NVME_INVALID_FIELD;
