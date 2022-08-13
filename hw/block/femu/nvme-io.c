@@ -222,11 +222,12 @@ static uint16_t zns_check_zone_write(FemuCtrl *n, NvmeNamespace *ns,
         if (append)
         {
             if (unlikely(slba != zone->d.zslba)) {
-                printf("*********ZONE INVALID FIELD Error*********\n");
+                 printf("ZONE INVALID FIELD Error! slba(0x%lx) == zone->d.zslba(0x%lx)\n", slba, zone->d.zslba);
                 status = NVME_INVALID_FIELD;
             }
             if (zns_l2b(ns, nlb) > (n->page_size << n->zasl)) {
-                printf("*********ZONE INVALID FIELD Error*********\n");
+                 printf("ZONE INVALID FIELD Error! byte(%ld) > (%d)n->page_size<<(%d)n->zasl(%d)\n",
+                        zns_l2b(ns, nlb), n->page_size, n->zasl, (n->page_size << n->zasl));
                 status = NVME_INVALID_FIELD;
             }
         }
