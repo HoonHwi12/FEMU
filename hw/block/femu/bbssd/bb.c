@@ -978,6 +978,24 @@ static uint16_t bb_admin_cmd(FemuCtrl *n, NvmeCmd *cmd)
     }
 }
 
+static int zns_start_ctrl(FemuCtrl *n)
+{
+    /* Coperd: let's fail early before anything crazy happens */
+    assert(n->page_size == 4096);
+
+    if (!n->zasl_bs) {
+        n->zasl = n->mdts;
+    } else {
+        if (n->zasl_bs < n->page_size) {
+            femu_err("ZASL too small (%dB), must >= 1 page (4K)\n", n->zasl_bs);
+            return -1;
+        }
+        n->zasl = 31 - clz32(n->zasl_bs / n->page_size);
+    }
+
+    return 0;
+}
+
 int nvme_register_bbssd(FemuCtrl *n)
 {
     n->ext_ops = (FemuExtCtrlOps) {
@@ -985,6 +1003,7 @@ int nvme_register_bbssd(FemuCtrl *n)
         .init             = bb_init,
         .exit             = NULL,
         .rw_check_req     = NULL,
+        .start_ctrl       = zns_start_ctrl,
         .admin_cmd        = bb_admin_cmd,
         .io_cmd           = bb_io_cmd,
         .get_log          = NULL,
