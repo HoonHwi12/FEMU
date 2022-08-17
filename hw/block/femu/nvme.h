@@ -1512,6 +1512,7 @@ static inline uint16_t nvme_check_mdts(FemuCtrl *n, size_t len)
 #define H_DEBUG_WRITE
 //#define H_DEBUG_GC
 //#define H_DEBUG_ZONE
+#define H_DEBUG_TBL
 
 
 #ifdef H_DEBUG_LEVEL1
@@ -1601,6 +1602,15 @@ static inline uint16_t nvme_check_mdts(FemuCtrl *n, size_t len)
 #endif
 #ifndef H_DEBUG_ZONE
 #define h_log_zone(fmt, ...) \
+    do {  } while (0)        
+#endif
+
+#ifdef H_DEBUG_TBL
+#define h_log_tbl(fmt, ...) \
+    do { fprintf(stderr, "[hoonhwi] TBL: " fmt, ## __VA_ARGS__); } while (0)        
+#endif
+#ifndef H_DEBUG_TBL
+#define h_log_tbl(fmt, ...) \
     do {  } while (0)        
 #endif
 // -----------------------------------------------------------------------------------------------------

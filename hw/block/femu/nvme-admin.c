@@ -1166,8 +1166,6 @@ static uint16_t nvme_zconfig_control(FemuCtrl *n, NvmeCmd *cmd)
     //free(ssd->ch);
     //*
     h_log_admin("ssd init start!\n");
-    slctbl *tbl = rslc.mapslc;
-    if(tbl->num_slc_data >261600) h_log2("ssd_init_params\n");
     ssd_init_params(n, spp);
 
     /* initialize ssd internal layout architecture */
@@ -1286,10 +1284,17 @@ static uint16_t nvme_zconfig_control(FemuCtrl *n, NvmeCmd *cmd)
     h_log_admin("initialize write pointer\n");
     ssd_init_write_pointer(n, ssd);
 
-    //slctbl *tbl = rslc.mapslc;
+    slctbl *tbl = rslc.mapslc;
+    slc_mapping *map_tbl;
     for(int temp=0; temp<n->num_zones; temp++)
     {
         tbl->num_slc_data = 0;
+        map_tbl = tbl->slcmap;
+        map_tbl->zdslba = 0;
+        map_tbl->zdnlb = 0;
+        map_tbl->target_addr = 0;
+        map_tbl->isvalid = false;
+
         tbl++;
     }
 

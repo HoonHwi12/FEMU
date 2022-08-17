@@ -405,7 +405,7 @@ static void slc_advance_write_pointer(struct ssd *ssd)
             }
         }
     }
-    if(H_TEST_LOG) h_log_nand_verbose("slc_wp: 0x%lx, wpp ch[%d] lun[%d] pg[%d] blk[%d] curline[%d]\n",
+    if(H_TEST_LOG && slc_wp >= 0x5c0000) h_log_nand_verbose("slc_wp: 0x%lx, wpp ch[%d] lun[%d] pg[%d] blk[%d] curline[%d]\n",
         slc_wp,wpp->ch, wpp->lun, wpp->pg, wpp->blk, wpp->curline->id);
 }
 
@@ -725,6 +725,8 @@ static uint64_t ssd_advance_status(struct ssd *ssd, struct ppa *ppa, struct nand
     uint64_t nand_stime;
     struct ssdparams *spp = &ssd->sp;
     struct nand_lun *lun = get_lun(ssd, ppa);
+    check_addr(ppa->g.lun, spp->luns_per_ch);
+
     uint64_t lat = 0;
 
     switch (c) {
@@ -1457,6 +1459,8 @@ static uint64_t ssd_read(struct ssd *ssd, NvmeRequest *req)
     }
 
     /* normal IO read path */
+    // printf("req slba:0x%lx\n", req->slba);
+    // printf("read: start: 0x%lx end:0x%lx\n", start_lpn, end_lpn);
     for (lpn = start_lpn; lpn <= end_lpn; lpn++) {
     //for (lbn = lba/spp->secs_per_blk; lbn <= (lba + nsecs - 1)/spp->secs_per_blk; lbn++) {
         //lbn = lpn / spp->pgs_per_blk / spp->luns_per_ch / spp->nchs;
@@ -1474,15 +1478,25 @@ static uint64_t ssd_read(struct ssd *ssd, NvmeRequest *req)
         ppa.g.pl = pba.g.pl;
         ppa.g.blk = pba.g.blk;
         ppa.g.pg = pg;
-        ppa.g.sec = pba.g.sec;
+        ppa.g.sec = 0;
 
         if (!mapped_ppa(&ppa) || !valid_ppa(ssd, &ppa)) {
             //printf("%s,lpn(%" PRId64 ") not mapped to valid ppa\n", ssd->ssdname, lpn);
             //printf("Invalid ppa,ch:%d,lun:%d,blk:%d,pl:%d,pg:%d,sec:%d\n",
             //ppa.g.ch, ppa.g.lun, ppa.g.blk, ppa.g.pl, ppa.g.pg, ppa.g.sec);
+            if(!mapped_ppa(&ppa))
+            {
+                //printf("read not mapped ppa!\n");
+            }
+            if(!valid_ppa(ssd, &ppa))
+            {
+                //printf("read invalid ppa!\n");
+            }
+            //printf("ppa: %x %x %x %x %x %x\n", ppa.g.ch, ppa.g.lun, ppa.g.pl, ppa.g.blk, ppa.g.pg, ppa.g.sec);
             continue;
         }
-//printf("debug] advance status\n");
+
+//printf("ssd read: %x %x %x %x %x\n", ppa.g.ch, ppa.g.lun, ppa.g.pl, ppa.g.blk, ppa.g.pg);
         struct nand_cmd srd;
         srd.type = USER_IO;
         srd.cmd = NAND_READ;
@@ -1515,11 +1529,6 @@ static uint64_t ssd_write(FemuCtrl *n, struct ssd *ssd, NvmeRequest *req)
     //NvmeZone *next_zone = n->zone_array;
     //next_zone++;
     struct write_pointer *wpp;
-    
-    if(lba>0x183555ff)
-    {
-        printf("selected zoneindex %d\n", zone_index);
-    }    
 
     if (end_lpn >= spp->tt_pgs) {
         //ftl_err("start_lpn=%"PRIu64",tt_pgs=%d\n", start_lpn, ssd->sp.tt_pgs);
@@ -1602,8 +1611,9 @@ static uint64_t ssd_write(FemuCtrl *n, struct ssd *ssd, NvmeRequest *req)
     ssd_advance_write_pointer(ssd, zone_index, true);
 }
         /* need to advance the write pointer here */
-        else ssd_advance_write_pointer(ssd, zone_index, false);
+        ssd_advance_write_pointer(ssd, zone_index, false);
 
+//printf("tlc write: %x %x %x %x %x\n", ppa.g.ch, ppa.g.lun, ppa.g.pl, ppa.g.blk, ppa.g.pg);
         struct nand_cmd swr;
         swr.type = USER_IO;
         swr.cmd = NAND_WRITE;
@@ -1656,13 +1666,13 @@ static uint64_t slc_write(struct ssd *ssd, NvmeRequest *req)
         // ppa.g.blk = pba.g.blk;
         // ppa.g.pg = pg;
 
-        struct write_pointer *wpp = &ssd->wp;
-        ppa.g.ch = wpp->ch;
-        ppa.g.lun = wpp->lun;
-        ppa.g.pl = wpp->pl;
-        ppa.g.blk = wpp->blk;
-        ppa.g.pg = wpp->pg;
-        ppa.ppa = 0;
+        // struct write_pointer *wpp = &ssd->wp;
+        // ppa.g.ch = wpp->ch;
+        // ppa.g.lun = wpp->lun;
+        // ppa.g.pl = wpp->pl;
+        // ppa.g.blk = wpp->blk;
+        // ppa.g.pg = wpp->pg;
+        // ppa.ppa = 0;
 
 
         // if (mapped_ppa(&ppa)) {
@@ -1716,7 +1726,7 @@ static uint64_t slc_write(struct ssd *ssd, NvmeRequest *req)
 
         /* need to advance the write pointer here */
         slc_advance_write_pointer(ssd);
-
+//printf("slc write: %x %x %x %x %x\n", ppa.g.ch, ppa.g.lun, ppa.g.pl, ppa.g.blk, ppa.g.pg);
         struct nand_cmd swr;
         swr.type = USER_IO;
         swr.cmd = NAND_WRITE;
@@ -1775,7 +1785,6 @@ static void *ftl_thread(void *arg)
             zone += zone_idx;
             req->zone_flash_type = zone->d.zone_flash_type;
 
-            if(H_TEST_LOG) printf("to ftl slba: 0x%lx\n", req->slba);
             //*******************************************************
 
             switch (req->cmd.opcode) {
@@ -1828,8 +1837,6 @@ static void *ftl_thread(void *arg)
             printf("gc start\n");
             do_slc_gc(n, ssd);
         }
-
-        if(H_TEST_LOG) printf("to ftl slba: 0x%lx finish\n", req->slba);
     }
 
     return NULL;

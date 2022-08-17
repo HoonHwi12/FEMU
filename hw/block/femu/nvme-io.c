@@ -425,7 +425,8 @@ static void nvme_process_sq_io(void *opaque, int index_poller)
             req->slba = cmd.cdw10 | ((uint64_t)cmd.cdw11<<32);
             req->cmd.cdw10 = req->slba & 0xFFFFFFFF;
             req->cmd.cdw11 = req->slba >> 32;
-
+printf("nvme-io write: oricmd slba:0x%lx, nlb:0x%x, cmd.cdw10:0x%x, cmd.cdw11:0x%x\n",
+    req->slba, req->nlb, cmd.cdw10, cmd.cdw11);
 //printf("slba: 0x%lx nlb:0x%x\n", req->slba, req->nlb);
 
             //NvmeZone *zone;
@@ -501,8 +502,8 @@ static void nvme_process_sq_io(void *opaque, int index_poller)
 
                         if (ori_zone->d.wp == zns_zone_wr_boundary(ori_zone))
                         {
-                            printf("here1 orizone_wp:0x%lx, Zboundary:0x%lx\n",
-                                    ori_zone->d.wp, zns_zone_wr_boundary(ori_zone));
+                            //printf("here1 orizone_wp:0x%lx, Zboundary:0x%lx\n",
+                                   // ori_zone->d.wp, zns_zone_wr_boundary(ori_zone));
                             switch (zns_get_zone_state(ori_zone))
                             {
                             case NVME_ZONE_STATE_IMPLICITLY_OPEN:
@@ -563,8 +564,6 @@ static void nvme_process_sq_io(void *opaque, int index_poller)
 
                 if (ori_zone->d.wp == zns_zone_wr_boundary(ori_zone))
                 {
-                    printf("here2 orizone_wp:0x%lx, Zboundary:0x%lx\n",
-                                    ori_zone->d.wp, zns_zone_wr_boundary(ori_zone));
                     switch (zns_get_zone_state(ori_zone))
                     {
                     case NVME_ZONE_STATE_IMPLICITLY_OPEN:
@@ -599,6 +598,7 @@ static void nvme_process_sq_io(void *opaque, int index_poller)
             req->slba = cmd.cdw10 | ((uint64_t)cmd.cdw11<<32);
             req->cmd.cdw10 = cmd.cdw10;
             req->cmd.cdw11 = cmd.cdw11;
+
         }
         else if(cmd.opcode == NVME_CMD_READ)
         {
@@ -609,7 +609,8 @@ static void nvme_process_sq_io(void *opaque, int index_poller)
             req->slba = cmd.cdw10 | ((uint64_t)cmd.cdw11<<32);
             req->cmd.cdw10 = req->slba & 0xFFFFFFFF;
             req->cmd.cdw11 = req->slba >> 32;
-
+//printf("nvme-io read: oricmd slba:0x%lx, nlb:0x%x, cmd.cdw10:0x%x, cmd.cdw11:0x%x\n",
+    //req->slba, req->nlb, cmd.cdw10, cmd.cdw11);
             slctbl *tbl = rslc.mapslc;
 
             tbl += ((req->slba)/n->zone_capacity);
@@ -634,6 +635,7 @@ static void nvme_process_sq_io(void *opaque, int index_poller)
 
                     i = tbl->num_slc_data;
                 }
+                //printf("nvme-io read: slccmd slba:0x%lx, nlb:0x%x\n", req->slba, req->nlb);
                 map_tbl++;
             }
         }
