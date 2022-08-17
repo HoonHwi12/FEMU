@@ -425,8 +425,8 @@ static void nvme_process_sq_io(void *opaque, int index_poller)
             req->slba = cmd.cdw10 | ((uint64_t)cmd.cdw11<<32);
             req->cmd.cdw10 = req->slba & 0xFFFFFFFF;
             req->cmd.cdw11 = req->slba >> 32;
-printf("nvme-io write: oricmd slba:0x%lx, nlb:0x%x, cmd.cdw10:0x%x, cmd.cdw11:0x%x\n",
-    req->slba, req->nlb, cmd.cdw10, cmd.cdw11);
+//printf("nvme-io write: oricmd slba:0x%lx, nlb:0x%x, cmd.cdw10:0x%x, cmd.cdw11:0x%x\n",
+    //req->slba, req->nlb, cmd.cdw10, cmd.cdw11);
 //printf("slba: 0x%lx nlb:0x%x\n", req->slba, req->nlb);
 
             //NvmeZone *zone;
