@@ -485,8 +485,8 @@ static void nvme_process_sq_io(void *opaque, int index_poller)
 
                         req_slba = req->slba;
 
-                        // cmd.cdw10 = slc_wp & 0xFFFFFFFF;
-                        // cmd.cdw11 = slc_wp >> 32;
+                        cmd.cdw10 = slc_wp & 0xFFFFFFFF;
+                        cmd.cdw11 = slc_wp >> 32;
 
                         slc_wp += cmd.cdw12+1;
                         pthread_mutex_unlock(&lock_slc_wp);
@@ -547,8 +547,8 @@ static void nvme_process_sq_io(void *opaque, int index_poller)
             {
                 req_slba = req->slba;
                 
-                // cmd.cdw10 = slc_wp & 0xFFFFFFFF;
-                // cmd.cdw11 = slc_wp >> 32;
+                cmd.cdw10 = slc_wp & 0xFFFFFFFF;
+                cmd.cdw11 = slc_wp >> 32;
 
                 slc_wp += cmd.cdw12+1; 
                 pthread_mutex_unlock(&lock_slc_wp);
@@ -592,12 +592,12 @@ static void nvme_process_sq_io(void *opaque, int index_poller)
                     }
                 }
 
+                req->slba = cmd.cdw10 | ((uint64_t)cmd.cdw11<<32);
+                req->cmd.cdw10 = cmd.cdw10;
+                req->cmd.cdw11 = cmd.cdw11;
+
                 set_mapslc_ent(ssd, ((req_slba)/n->zone_capacity), req->slba, cmd.cdw12, req_slba);
             }
-
-            req->slba = cmd.cdw10 | ((uint64_t)cmd.cdw11<<32);
-            req->cmd.cdw10 = cmd.cdw10;
-            req->cmd.cdw11 = cmd.cdw11;
 
         }
         else if(cmd.opcode == NVME_CMD_READ)
@@ -643,12 +643,11 @@ static void nvme_process_sq_io(void *opaque, int index_poller)
         if (n->print_log) {
             femu_debug("%s,cid:%d\n", __func__, cmd.cid);
         }
+        if(H_TEST_LOG && cmd.opcode == NVME_CMD_WRITE && slc_wp > 0x159c80) printf("nvme_io_cmd, slc_wp: 0x%lx\n", slc_wp);
         status = nvme_io_cmd(n, &cmd, req);
         if (1 && status == NVME_SUCCESS) {
             req->status = status;
-if(H_TEST_LOG && cmd.opcode != NVME_CMD_WRITE) printf("read femu ring enqueu\n");
             int rc = femu_ring_enqueue(n->to_ftl[index_poller], (void *)&req, 1);
-if(H_TEST_LOG && cmd.opcode != NVME_CMD_WRITE) printf("read femu ring enqueu finish\n");
             if (rc != 1) {
                 femu_err("enqueue failed, ret=%d\n", rc);
             }

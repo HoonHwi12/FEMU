@@ -393,7 +393,7 @@ static void slc_advance_write_pointer(struct ssd *ssd)
                     abort();
                 }
                 wpp->blk = wpp->curline->id;
-                printf("Advance slc write pointer: new ch(%d) lun(%d) pl(%d) blk(%d) pl(%d)\n",
+                h_log_gc("Advance slc write pointer: new ch(%d) lun(%d) pl(%d) blk(%d) pl(%d)\n",
                     wpp->ch, wpp->lun, wpp->pl, wpp->blk, wpp->pg);
                 check_addr(wpp->blk, spp->blks_per_pl);
                 /* make sure we are starting from page 0 in the super block */

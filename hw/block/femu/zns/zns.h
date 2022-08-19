@@ -136,9 +136,9 @@ inline void set_mapslc_ent(struct ssd *ssd, uint16_t zone_index, uint64_t zdslba
         map_tbl += tbl->num_slc_data - 1;
         if( (map_tbl->zdslba + map_tbl->zdnlb + 1) == zdslba)
         {
-            map_tbl->zdnlb += zdnlb + 1;
             h_log_tbl("attached tbl! zone:%d, num_tbl: %ld, tbl_slba: 0x%lx, tbl_nlb: 0x%lx, cmd_slba: 0x%lx\n",
-                zone_index, tbl->num_slc_data, map_tbl->zdslba, map_tbl->zdnlb, zdslba);
+                zone_index, tbl->num_slc_data, map_tbl->zdslba, map_tbl->zdnlb, zdslba);            
+            map_tbl->zdnlb += zdnlb + 1;
             //h_log_writecmd("tbl[%d] num data: %ld\n", zone_index, tbl->num_slc_data);
             //h_log_writecmd("map_tbl[%ld] slba: 0x%lx, nlb: 0x%x, map.target: 0x%lx, this.target_addr: 0x%lx\n",
             //    tbl->num_slc_data-1, map_tbl->zdslba, map_tbl->zdnlb, map_tbl->target_addr, target_addr);            
@@ -153,8 +153,8 @@ inline void set_mapslc_ent(struct ssd *ssd, uint16_t zone_index, uint64_t zdslba
             map_tbl->target_addr = target_addr;
             map_tbl->isvalid = true;
 
-            h_log_tbl("new tbl! zone:%d, num_tbl: %ld, tbl_slba: 0x%lx, tbl_nlb: 0x%lx, cmd_slba: 0x%lx\n",
-                zone_index, tbl->num_slc_data, map_tbl->zdslba, map_tbl->zdnlb, zdslba);
+            h_log_tbl("new tbl! slc_wp:0x%lx zone:%d, num_tbl: %ld, tbl_slba: 0x%lx, tbl_nlb: 0x%lx, cmd_slba: 0x%lx\n",
+                slc_wp, zone_index, tbl->num_slc_data, map_tbl->zdslba, map_tbl->zdnlb, zdslba);
             
             // map_tbl->zdline = ppa.g.blk;
             // map_tbl->zdch = ppa.g.ch;
