@@ -1404,6 +1404,9 @@ static uint16_t nvme_zconfig_control(FemuCtrl *n, NvmeCmd *cmd)
 
     h_log_admin("max active: %d\n", n->max_active_zones );
     h_log_admin("max open: %d\n", n->max_open_zones );
+    h_log_admin("slc ttline: %d\n", slm.tt_lines );
+    h_log_admin("curline: %ls\n", &ssd->wp.curline->id );
+    
 
     return NVME_SUCCESS;
 }
