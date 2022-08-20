@@ -113,16 +113,21 @@ uint16_t femu_nvme_rw_check_req(FemuCtrl *n, NvmeNamespace *ns, NvmeCmd *cmd,
     if (elba > le64_to_cpu(ns->id_ns.nsze)) {
         nvme_set_error_page(n, req->sq->sqid, cmd->cid, NVME_LBA_RANGE,
                             offsetof(NvmeRwCmd, nlb), elba, ns->id);
+        printf("elba(0x%lx) > ns->id_ns.nsze(0x%lx)!\n",
+            elba, le64_to_cpu(ns->id_ns.nsze));
         return NVME_LBA_RANGE | NVME_DNR;
     }
     if (n->id_ctrl.mdts && data_size > n->page_size * (1 << n->id_ctrl.mdts)) {
         nvme_set_error_page(n, req->sq->sqid, cmd->cid, NVME_INVALID_FIELD,
                             offsetof(NvmeRwCmd, nlb), nlb, ns->id);
+        printf("data size error! mdts:0x%x, data_size:0x%lx, page_size:0x%x\n",
+            n->id_ctrl.mdts, data_size, n->page_size);
         return NVME_INVALID_FIELD | NVME_DNR;
     }
     if (meta_size) {
         nvme_set_error_page(n, req->sq->sqid, cmd->cid, NVME_INVALID_FIELD,
                             offsetof(NvmeRwCmd, control), ctrl, ns->id);
+        printf("meta_size detected! meta: 0x%lx \n", meta_size);
         return NVME_INVALID_FIELD | NVME_DNR;
     }
     if ((ctrl & NVME_RW_PRINFO_PRACT) && !(ns->id_ns.dps & DPS_TYPE_MASK)) {
@@ -132,11 +137,13 @@ uint16_t femu_nvme_rw_check_req(FemuCtrl *n, NvmeNamespace *ns, NvmeCmd *cmd,
         if (OCSSD(n)) {
             return 0;
         }
+        printf("ctrl(%d), ns->id_ns.dps(0x%x)\n", ctrl, ns->id_ns.dps);
         return NVME_INVALID_FIELD | NVME_DNR;
     }
     if (!req->is_write && find_next_bit(ns->uncorrectable, elba, slba) < elba) {
         nvme_set_error_page(n, req->sq->sqid, cmd->cid, NVME_UNRECOVERED_READ,
                             offsetof(NvmeRwCmd, slba), elba, ns->id);
+        printf("return unrecovered read\n");
         return NVME_UNRECOVERED_READ;
     }
 

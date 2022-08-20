@@ -142,6 +142,13 @@ void ssd_init_lines(FemuCtrl *n, struct ssd *ssd)
     struct ssdparams *spp = &ssd->sp;
     struct line_mgmt *lm = &ssd->lm;
     struct line *line;
+    
+    slctbl *tbl = rslc.mapslc;
+    for(int temp=0; temp < n->num_zones; temp++)
+    {
+        tbl->slcmap = g_malloc0(sizeof(uint64_t) * sizeof(slc_mapping));
+        tbl++;
+    }
 
     slm.tt_lines = 16; // Line size: nch*nlun*npg -> 4096 pgs per line
     slm.lines = g_malloc0(sizeof(struct line) * spp->blks_per_pl);
