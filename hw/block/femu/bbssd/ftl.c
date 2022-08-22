@@ -426,7 +426,7 @@ static void slc_advance_write_pointer(struct ssd *ssd)
             }
         }
     }
-    if(H_TEST_LOG && slc_wp > 0x3ff00) h_log_nand_verbose("slc_wp: 0x%lx, wpp ch[%d] lun[%d] pg[%d] blk[%d] curline[%d]\n",
+    if(H_TEST_LOG) h_log_nand_verbose("slc_wp: 0x%lx, wpp ch[%d] lun[%d] pg[%d] blk[%d] curline[%d]\n",
         slc_wp,wpp->ch, wpp->lun, wpp->pg, wpp->blk, wpp->curline->id);
 }
 
