@@ -208,6 +208,7 @@ void ssd_init_write_pointer(FemuCtrl *n, struct ssd *ssd)
     struct line *curline;
     write_pointer *nwp = wpzone.wpnand;
 
+    pthread_mutex_lock(&lock_nand_wp);
     if(slm.tt_lines > 0)
     {
         wpp->curline = NULL;
@@ -238,6 +239,7 @@ void ssd_init_write_pointer(FemuCtrl *n, struct ssd *ssd)
 
         nwp++;
     }
+    pthread_mutex_unlock(&lock_nand_wp);
 }
 
 static inline void check_addr(int a, int max)
@@ -378,8 +380,20 @@ static void slc_advance_write_pointer(struct ssd *ssd)
                 check_addr(wpp->blk, spp->blks_per_pl);
                 wpp->curline = NULL;
                 wpp->curline = QTAILQ_FIRST(&slm.free_line_list);
-                h_log_nand("slc_wp: 0x%lx, slm_ttline: %d, nch:%d luns per ch: %d pgs per blk: %d\n",
+                h_log_nand("slc_wp: 0x%lx, slm_ttline: %d, nch:%d luns per ch:%d pgs per blk:%d\n",
                         slc_wp, slm.tt_lines, spp->nchs, spp->luns_per_ch, spp->pgs_per_blk);
+
+                if( (wpp->curline->id) > slm.tt_lines)
+                {
+                    printf("warning! selected line is %d, select another line!\n", wpp->curline->id);
+                    QTAILQ_REMOVE(&slm.free_line_list, wpp->curline, entry);
+                    slm.free_line_cnt--;
+
+                    wpp->curline = NULL;
+                    wpp->curline = QTAILQ_FIRST(&slm.free_line_list);
+                    h_log_nand("slc_wp: 0x%lx, slm_ttline: %d, nch:%d luns per ch:%d pgs per blk:%d\n",
+                        slc_wp, slm.tt_lines, spp->nchs, spp->luns_per_ch, spp->pgs_per_blk);
+                }
 
                 if (!wpp->curline) {
                     printf("No free lines left in SLC, slc_wp(0x%lx)\n", slc_wp);
@@ -412,7 +426,7 @@ static void slc_advance_write_pointer(struct ssd *ssd)
             }
         }
     }
-    if(H_TEST_LOG && slc_wp >= 0x5c0000) h_log_nand_verbose("slc_wp: 0x%lx, wpp ch[%d] lun[%d] pg[%d] blk[%d] curline[%d]\n",
+    if(H_TEST_LOG && slc_wp > 0x3ff00) h_log_nand_verbose("slc_wp: 0x%lx, wpp ch[%d] lun[%d] pg[%d] blk[%d] curline[%d]\n",
         slc_wp,wpp->ch, wpp->lun, wpp->pg, wpp->blk, wpp->curline->id);
 }
 
@@ -1306,7 +1320,9 @@ static int do_slc_gc(FemuCtrl *n, struct ssd *ssd)
                         mark_page_valid(ssd, &new_ppa, false, i);
 
                         h_log_gc("advance write pointer\n");
+                        pthread_mutex_lock(&lock_nand_wp);
                         ssd_advance_write_pointer(ssd, i, false);
+                        pthread_mutex_unlock(&lock_nand_wp);
 
     //printf("gc write %d\n", tempcnt);
                         gcw.type = GC_IO;
@@ -1423,25 +1439,6 @@ static int do_slc_gc(FemuCtrl *n, struct ssd *ssd)
     pthread_mutex_unlock(&lock_slc_wp);
 
     IN_SLC_GC = false;
-
-    // QTAILQ_INIT(&slm.free_line_list);
-    // QTAILQ_INIT(&slm.full_line_list);
-    // slm.free_line_cnt = 0;
-    // for (int i = 0; i < slm.tt_lines; i++)
-    // {
-    //     line = &slm.lines[i];
-    //     line->id = i;
-    //     line->ipc = 0;
-    //     line->vpc = 0;
-    //     line->pos = 0;
-    //     /* initialize all the lines as free lines */
-    //     QTAILQ_INSERT_TAIL(&slm.free_line_list, line, entry);
-    //     slm.free_line_cnt++;
-    //     printf("slm id:%d inserted to tail\n", line->id);
-    // }
-    // ftl_assert(slm.free_line_cnt == slm.tt_lines);
-    // slm.victim_line_cnt = 0;
-    // slm.full_line_cnt = 0;   
 
     return 0;
 }
@@ -1605,20 +1602,12 @@ static uint64_t ssd_write(FemuCtrl *n, struct ssd *ssd, NvmeRequest *req)
         /* update rmap */
         //set_rmap_ent(ssd, lpn, &ppa);
 
-                if(lba>0x183555ff)
-{
-    printf("ftl 6\n");
-    mark_page_valid(ssd, &ppa, true, zone_index);
-}
-        else mark_page_valid(ssd, &ppa, false, zone_index);
+        mark_page_valid(ssd, &ppa, false, zone_index);
 
-        if(lba>0x183555ff)
-{
-    printf("ftl 4\n");
-    ssd_advance_write_pointer(ssd, zone_index, true);
-}
         /* need to advance the write pointer here */
+        pthread_mutex_lock(&lock_nand_wp);
         ssd_advance_write_pointer(ssd, zone_index, false);
+        pthread_mutex_unlock(&lock_nand_wp);
 
 //printf("tlc write: %x %x %x %x %x\n", ppa.g.ch, ppa.g.lun, ppa.g.pl, ppa.g.blk, ppa.g.pg);
         struct nand_cmd swr;
@@ -1732,7 +1721,9 @@ static uint64_t slc_write(struct ssd *ssd, NvmeRequest *req)
         //printf("slc write: curline id%d ipc%d vpc%d\n", wpp->curline->id, wpp->curline->ipc, wpp->curline->vpc);
 
         /* need to advance the write pointer here */
+        pthread_mutex_lock(&lock_nand_wp);
         slc_advance_write_pointer(ssd);
+        pthread_mutex_unlock(&lock_nand_wp);
 //printf("slc write: %x %x %x %x %x\n", ppa.g.ch, ppa.g.lun, ppa.g.pl, ppa.g.blk, ppa.g.pg);
         struct nand_cmd swr;
         swr.type = USER_IO;

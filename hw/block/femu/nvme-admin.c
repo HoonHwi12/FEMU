@@ -1239,6 +1239,9 @@ static uint16_t nvme_zconfig_control(FemuCtrl *n, NvmeCmd *cmd)
     h_log_admin("initialize lines\n");
 
     QTAILQ_INIT(&slm.free_line_list);
+    slm.victim_line_pq = pqueue_init(spp->tt_lines, victim_line_cmp_pri,
+            victim_line_get_pri, victim_line_set_pri,
+            victim_line_get_pos, victim_line_set_pos);    
     QTAILQ_INIT(&slm.full_line_list);
     slm.free_line_cnt = 0;
     for (int i = 0; i < slm.tt_lines; i++) {
@@ -1250,7 +1253,7 @@ static uint16_t nvme_zconfig_control(FemuCtrl *n, NvmeCmd *cmd)
         /* initialize all the lines as free lines */
         QTAILQ_INSERT_TAIL(&slm.free_line_list, line, entry);
         slm.free_line_cnt++;
-        printf("slm id:%d inserted to tail\n", line->id);
+        //printf("slm id:%d inserted to tail\n", line->id);
     }
     ftl_assert(slm.free_line_cnt == slm.tt_lines);
     slm.victim_line_cnt = 0;
@@ -1282,6 +1285,8 @@ static uint16_t nvme_zconfig_control(FemuCtrl *n, NvmeCmd *cmd)
 
     /* initialize write pointer, this is how we allocate new pages for writes */
     h_log_admin("initialize write pointer\n");
+
+    pthread_mutex_init(&lock_nand_wp, NULL);   
     ssd_init_write_pointer(n, ssd);
 
     slctbl *tbl = rslc.mapslc;
@@ -1402,10 +1407,12 @@ static uint16_t nvme_zconfig_control(FemuCtrl *n, NvmeCmd *cmd)
 
     n->id_ns_zoned = id_ns_z;
 
+    struct write_pointer *wpp = &ssd->wp;
+
     h_log_admin("max active: %d\n", n->max_active_zones );
     h_log_admin("max open: %d\n", n->max_open_zones );
     h_log_admin("slc ttline: %d\n", slm.tt_lines );
-    h_log_admin("curline: %ls\n", &ssd->wp.curline->id );
+    h_log_admin("curline: %d\n", wpp->curline->id);
     
 
     return NVME_SUCCESS;

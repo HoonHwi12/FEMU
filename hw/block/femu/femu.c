@@ -106,6 +106,7 @@ static void nvme_write_bar(FemuCtrl *n, hwaddr offset, uint64_t data, unsigned s
             pthread_mutex_init(&lock_slc_wp, NULL);
             pthread_mutex_init(&lock_nr_open, NULL);
             pthread_mutex_init(&lock_nr_active, NULL);
+            pthread_mutex_init(&lock_nand_wp, NULL);
 
             nvme_clear_ctrl(n, false);
             n->bar.csts &= ~NVME_CSTS_READY;

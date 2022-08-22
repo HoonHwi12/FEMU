@@ -12,7 +12,6 @@
 bool H_TEST_LOG = false;
 bool IN_SLC_GC = false;
 
-pthread_mutex_t lock_rslc[2048];
 struct slc_region rslc;
 struct w_pointer wpzone;
 struct line_mgmt slm;
@@ -20,6 +19,8 @@ struct line_mgmt slm;
 pthread_mutex_t lock_nr_open;
 pthread_mutex_t lock_nr_active;
 pthread_mutex_t lock_slc_wp;
+pthread_mutex_t lock_nand_wp;
+
 uint64_t        slc_wp;
 //*
 

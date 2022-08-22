@@ -68,6 +68,8 @@ extern struct line_mgmt slm;
 extern pthread_mutex_t lock_nr_open;
 extern pthread_mutex_t lock_nr_active;
 extern pthread_mutex_t lock_slc_wp;
+extern pthread_mutex_t lock_nand_wp;
+
 extern uint64_t        slc_wp;
 
 typedef struct slc_mapping {
@@ -413,6 +415,12 @@ static inline void zns_aor_inc_active(NvmeNamespace *ns)
         n->nr_active_zones++;
         h_log_zone("nr_active++(%d)\n", n->nr_active_zones);
         pthread_mutex_unlock(&lock_nr_active);
+
+        if(n->nr_active_zones > n->max_active_zones)
+        {
+            printf("ERROR! n->nr_zctive:%d, n->max_active:%d\n",
+                n->nr_active_zones, n->max_active_zones);
+        }
         assert(n->nr_active_zones <= n->max_active_zones);
     }
 }

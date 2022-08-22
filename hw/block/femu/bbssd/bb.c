@@ -171,6 +171,7 @@ static void zns_init_zone_identify(FemuCtrl *n, NvmeNamespace *ns, int lba_index
     pthread_mutex_init(&lock_nr_open, NULL);
     pthread_mutex_init(&lock_nr_active, NULL);
     pthread_mutex_init(&lock_slc_wp, NULL);
+    pthread_mutex_init(&lock_nand_wp, NULL);
     
     pthread_mutex_lock(&lock_slc_wp);
     slc_wp = 0;  
