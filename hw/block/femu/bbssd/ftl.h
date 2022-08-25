@@ -240,6 +240,13 @@ struct line_mgmt {
     int free_line_cnt;
     int victim_line_cnt;
     int full_line_cnt;
+
+    QTAILQ_HEAD(slc_free_line_list, line) slc_free_line_list;
+    pqueue_t *slc_victim_line_pq;
+    QTAILQ_HEAD(slc_full_line_list, line) slc_full_line_list;
+    int slc_free_line_cnt;
+    int slc_victim_line_cnt;
+    int slc_full_line_cnt;
 };
 
 struct nand_cmd {

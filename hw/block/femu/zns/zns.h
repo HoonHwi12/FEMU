@@ -63,11 +63,13 @@ enum NvmeZoneSendAction {
 //* by HH
 extern struct slc_region rslc;
 extern struct w_pointer wpzone;
-extern struct line_mgmt slm;
+//extern struct line_mgmt slm;
+extern uint64_t slc_line_boundary;
 
 extern pthread_mutex_t lock_nr_open;
 extern pthread_mutex_t lock_nr_active;
 extern pthread_mutex_t lock_slc_wp;
+extern pthread_mutex_t lock_slc_nand;
 extern uint64_t        slc_wp;
 
 typedef struct slc_mapping {
@@ -106,67 +108,67 @@ typedef struct slc_region {
 #include "../bbssd/ftl.h"
 inline void set_mapslc_ent(struct ssd *ssd, uint16_t zone_index, uint64_t zdslba, uint32_t zdnlb, uint64_t target_addr)
 {
-    slctbl *tbl = rslc.mapslc;
-    //* HH: nand mapping
-    //struct ppa ppa = get_new_page(ssd);
+    // slctbl *tbl = rslc.mapslc;
+    // //* HH: nand mapping
+    // //struct ppa ppa = get_new_page(ssd);
 
-    tbl += zone_index;
-    slc_mapping *map_tbl = tbl->slcmap;
+    // tbl += zone_index;
+    // slc_mapping *map_tbl = tbl->slcmap;
     
-    if(tbl->num_slc_data == 0)
-    {
-        map_tbl += tbl->num_slc_data;
+    // if(tbl->num_slc_data == 0)
+    // {
+    //     map_tbl += tbl->num_slc_data;
 
-        map_tbl->zdslba = zdslba;
-        map_tbl->zdnlb = zdnlb;  
-        map_tbl->target_addr = target_addr;
-        map_tbl->isvalid = true;
-        // map_tbl->zdline = ppa.g.blk;
-        // map_tbl->zdch = ppa.g.ch;
-        // map_tbl->zdlun = ppa.g.lun;
-        // map_tbl->zdpg = ppa.g.pg;
+    //     map_tbl->zdslba = zdslba;
+    //     map_tbl->zdnlb = zdnlb;  
+    //     map_tbl->target_addr = target_addr;
+    //     map_tbl->isvalid = true;
+    //     // map_tbl->zdline = ppa.g.blk;
+    //     // map_tbl->zdch = ppa.g.ch;
+    //     // map_tbl->zdlun = ppa.g.lun;
+    //     // map_tbl->zdpg = ppa.g.pg;
         
-        tbl->num_slc_data++;
-        h_log_tbl("First data! zone:%d, num_tbl: %ld\n", zone_index, tbl->num_slc_data);
-        //h_log_writecmd("map_tbl[%ld] slba: 0x%lx, nlb: 0x%x, target: 0x%lx, valid: %d\n",
-        //    tbl->num_slc_data-1, map_tbl->zdslba, map_tbl->zdnlb, map_tbl->target_addr, map_tbl->isvalid);
-    }
-    else
-    {
-        map_tbl += tbl->num_slc_data - 1;
-        if( (map_tbl->zdslba + map_tbl->zdnlb + 1) == zdslba)
-        {
-            h_log_tbl("attached tbl! zone:%d, num_tbl: %ld, tbl_slba: 0x%lx, tbl_nlb: 0x%lx, cmd_slba: 0x%lx\n",
-                zone_index, tbl->num_slc_data, map_tbl->zdslba, map_tbl->zdnlb, zdslba);            
-            map_tbl->zdnlb += zdnlb + 1;
-            //h_log_writecmd("tbl[%d] num data: %ld\n", zone_index, tbl->num_slc_data);
-            //h_log_writecmd("map_tbl[%ld] slba: 0x%lx, nlb: 0x%x, map.target: 0x%lx, this.target_addr: 0x%lx\n",
-            //    tbl->num_slc_data-1, map_tbl->zdslba, map_tbl->zdnlb, map_tbl->target_addr, target_addr);            
-        }
-        else
-        {
-            map_tbl = tbl->slcmap;
-            map_tbl += tbl->num_slc_data;
+    //     tbl->num_slc_data++;
+    //     h_log_tbl("First data! zone:%d, num_tbl: %ld\n", zone_index, tbl->num_slc_data);
+    //     //h_log_writecmd("map_tbl[%ld] slba: 0x%lx, nlb: 0x%x, target: 0x%lx, valid: %d\n",
+    //     //    tbl->num_slc_data-1, map_tbl->zdslba, map_tbl->zdnlb, map_tbl->target_addr, map_tbl->isvalid);
+    // }
+    // else
+    // {
+    //     map_tbl += tbl->num_slc_data - 1;
+    //     if( (map_tbl->zdslba + map_tbl->zdnlb + 1) == zdslba)
+    //     {
+    //         h_log_tbl("attached tbl! zone:%d, num_tbl: %ld, tbl_slba: 0x%lx, tbl_nlb: 0x%lx, cmd_slba: 0x%lx\n",
+    //             zone_index, tbl->num_slc_data, map_tbl->zdslba, map_tbl->zdnlb, zdslba);            
+    //         map_tbl->zdnlb += zdnlb + 1;
+    //         //h_log_writecmd("tbl[%d] num data: %ld\n", zone_index, tbl->num_slc_data);
+    //         //h_log_writecmd("map_tbl[%ld] slba: 0x%lx, nlb: 0x%x, map.target: 0x%lx, this.target_addr: 0x%lx\n",
+    //         //    tbl->num_slc_data-1, map_tbl->zdslba, map_tbl->zdnlb, map_tbl->target_addr, target_addr);            
+    //     }
+    //     else
+    //     {
+    //         map_tbl = tbl->slcmap;
+    //         map_tbl += tbl->num_slc_data;
 
-            map_tbl->zdslba = zdslba;
-            map_tbl->zdnlb = zdnlb;  
-            map_tbl->target_addr = target_addr;
-            map_tbl->isvalid = true;
+    //         map_tbl->zdslba = zdslba;
+    //         map_tbl->zdnlb = zdnlb;  
+    //         map_tbl->target_addr = target_addr;
+    //         map_tbl->isvalid = true;
 
-            h_log_tbl("new tbl! slc_wp:0x%lx zone:%d, num_tbl: %ld, tbl_slba: 0x%lx, tbl_nlb: 0x%lx, cmd_slba: 0x%lx\n",
-                slc_wp, zone_index, tbl->num_slc_data, map_tbl->zdslba, map_tbl->zdnlb, zdslba);
+    //         h_log_tbl("new tbl! slc_wp:0x%lx zone:%d, num_tbl: %ld, tbl_slba: 0x%lx, tbl_nlb: 0x%lx, cmd_slba: 0x%lx\n",
+    //             slc_wp, zone_index, tbl->num_slc_data, map_tbl->zdslba, map_tbl->zdnlb, zdslba);
             
-            // map_tbl->zdline = ppa.g.blk;
-            // map_tbl->zdch = ppa.g.ch;
-            // map_tbl->zdlun = ppa.g.lun;
-            // map_tbl->zdpg = ppa.g.pg;       
+    //         // map_tbl->zdline = ppa.g.blk;
+    //         // map_tbl->zdch = ppa.g.ch;
+    //         // map_tbl->zdlun = ppa.g.lun;
+    //         // map_tbl->zdpg = ppa.g.pg;       
 
-            tbl->num_slc_data++;
-            //h_log_writecmd("tbl[%d] num data: %ld\n", zone_index, tbl->num_slc_data);
-            //h_log_writecmd("map_tbl[%ld] slba: 0x%lx, nlb: 0x%x, target: 0x%lx, valid: %d\n",
-            //    tbl->num_slc_data-1, map_tbl->zdslba, map_tbl->zdnlb, map_tbl->target_addr, map_tbl->isvalid);            
-        }
-    }
+    //         tbl->num_slc_data++;
+    //         //h_log_writecmd("tbl[%d] num data: %ld\n", zone_index, tbl->num_slc_data);
+    //         //h_log_writecmd("map_tbl[%ld] slba: 0x%lx, nlb: 0x%x, target: 0x%lx, valid: %d\n",
+    //         //    tbl->num_slc_data-1, map_tbl->zdslba, map_tbl->zdnlb, map_tbl->target_addr, map_tbl->isvalid);            
+    //     }
+    // }
 }
 
 

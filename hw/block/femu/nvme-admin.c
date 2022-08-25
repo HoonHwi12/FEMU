@@ -1035,9 +1035,9 @@ static uint16_t nvme_print_flash_type(FemuCtrl *n, NvmeCmd *cmd)
 
     printf("\n");
     printf("ssd free line: %d\n", ssd->lm.free_line_cnt);
-    printf("LINE-info   ] ttLine: %d, Linesize: 0x%x pgs, TLCttline: %d, SLCttline: %d, TLC-full/free/victim: %d/%d/%d, SLC-full/free/victim: %d/%d/%d\n",
-        spp->tt_lines, spp->nchs*spp->luns_per_ch*spp->pgs_per_blk, lm->tt_lines, slm.tt_lines, lm->full_line_cnt, lm->free_line_cnt, lm->victim_line_cnt,
-        slm.full_line_cnt, slm.free_line_cnt, slm.victim_line_cnt);
+    printf("LINE-info   ] ttLine: %d, Linesize: 0x%x pgs, TLCttline: %ld, SLCttline: %ld, TLC-full/free/victim: %d/%d/%d, SLC-full/free/victim: %d/%d/%d\n",
+        spp->tt_lines, spp->nchs*spp->luns_per_ch*spp->pgs_per_blk, lm->tt_lines - slc_line_boundary, slc_line_boundary, lm->full_line_cnt, lm->free_line_cnt, lm->victim_line_cnt,
+        lm->slc_full_line_cnt, lm->slc_free_line_cnt, lm->slc_victim_line_cnt);
     printf("SLC-info    ] numZONE: %d\n",
         n->num_zones);
     printf("zState-info ] zone_max_open: %d, zone_max_active: %d, zone_nr_open: %d, zone_nr_active: %d\n",
@@ -1103,40 +1103,16 @@ static uint16_t nvme_zconfig_control(FemuCtrl *n, NvmeCmd *cmd)
     if(cmd->cdw12 != 0x899)
     {
         //assert(cmd->cdw12 < (n->num_zones * n->zone_capacity));
-        if(cmd->cdw12 > lm->tt_lines)
+        if(cmd->cdw12 > spp->blks_per_pl)
         {
             printf("invalid argument! argument: %d > total line: %d",
-                cmd->cdw12, lm->tt_lines);
+                cmd->cdw12, spp->blks_per_pl);
         }
         else
         {
-            //n->memsz += (slm.tt_lines * spp->secsz * spp->secs_per_pg * spp->pgs_per_blk * spp->pls_per_lun * spp->luns_per_ch * spp->nchs / 1024 / 1024); 
-            
-            slm.tt_lines = cmd->cdw12;
-            lm->tt_lines = spp->blks_per_pl - slm.tt_lines;
-            ftl_assert(lm->tt_lines+slm.tt_lines == spp->tt_lines);
-            
-            // n->memsz -= (slm.tt_lines * spp->secsz * spp->secs_per_pg * spp->pgs_per_blk * spp->pls_per_lun * spp->luns_per_ch * spp->nchs / 1024 / 1024);
-            // int64_t bs_size = ((uint64_t)n->memsz * 1024 * 1024);
-            // n->ns_size = bs_size / (uint64_t)n->num_namespaces;
-
-            // //* Init NS
-            // NvmeNamespace *ns = n->namespaces;
-            // ns->size = n->ns_size;
-            
-            // NvmeIdNs *id_ns = &ns->id_ns;
-            // uint64_t num_blks;
-            // int lba_index;
-
-            // //nvme_ns_init_identify(n, id_ns);
-
-            // lba_index = NVME_ID_NS_FLBAS_INDEX(ns->id_ns.flbas);
-            // num_blks = n->ns_size / ((1 << id_ns->lbaf[lba_index].lbads));
-            // id_ns->nuse = id_ns->ncap = id_ns->nsze = cpu_to_le64(num_blks);
-
-            // ns->ns_blks = ns_blks(ns, lba_index);      
-
-            // printf("meesz: %lx GB\n", n->ns_size/1024/1024);
+            slc_line_boundary = cmd->cdw12;
+            lm->tt_lines = spp->blks_per_pl;
+            ftl_assert(lm->tlc_tt_lines+slc_line_boundary == spp->tt_lines);
         }
     }
     if(cmd->cdw13 != 0x899 && cmd->cdw13 <n->num_zones)
@@ -1238,33 +1214,24 @@ static uint16_t nvme_zconfig_control(FemuCtrl *n, NvmeCmd *cmd)
     /* initialize all the lines */
     h_log_admin("initialize lines\n");
 
-    QTAILQ_INIT(&slm.free_line_list);
-    QTAILQ_INIT(&slm.full_line_list);
-    slm.free_line_cnt = 0;
-    for (int i = 0; i < slm.tt_lines; i++) {
-        line = &slm.lines[i];
-        line->id = i;
-        line->ipc = 0;
-        line->vpc = 0;
-        line->pos = 0;
-        /* initialize all the lines as free lines */
-        QTAILQ_INSERT_TAIL(&slm.free_line_list, line, entry);
-        slm.free_line_cnt++;
-        printf("slm id:%d inserted to tail\n", line->id);
-    }
-    ftl_assert(slm.free_line_cnt == slm.tt_lines);
-    slm.victim_line_cnt = 0;
-    slm.full_line_cnt = 0;   
-
-
+    lm->tt_lines = spp->blks_per_pl;
+    ftl_assert(lm->tt_lines == spp->tt_lines);
     QTAILQ_INIT(&lm->free_line_list);
+
     lm->victim_line_pq = pqueue_init(spp->tt_lines, victim_line_cmp_pri,
             victim_line_get_pri, victim_line_set_pri,
             victim_line_get_pos, victim_line_set_pos);
     QTAILQ_INIT(&lm->full_line_list);
 
+    QTAILQ_INIT(&lm->slc_free_line_list);
+    lm->slc_victim_line_pq = pqueue_init(spp->tt_lines, victim_line_cmp_pri,
+            victim_line_get_pri, victim_line_set_pri,
+            victim_line_get_pos, victim_line_set_pos);
+    QTAILQ_INIT(&lm->slc_full_line_list);
+
+    lm->slc_free_line_cnt = 0;
     lm->free_line_cnt = 0;
-    for (int i = slm.tt_lines; i < lm->tt_lines + slm.tt_lines; i++)
+    for (int i = 0; i < lm->tt_lines; i++)
     {
         line = &lm->lines[i];
         line->id = i;
@@ -1272,13 +1239,26 @@ static uint16_t nvme_zconfig_control(FemuCtrl *n, NvmeCmd *cmd)
         line->vpc = 0;
         line->pos = 0;
         /* initialize all the lines as free lines */
-        QTAILQ_INSERT_TAIL(&lm->free_line_list, line, entry);
-        lm->free_line_cnt++;
-        //printf("tlc lm id:%d inserted to tail, tlc free:%d, ssd tlc free:%d\n", line->id, lm->free_line_cnt, ssd->lm.free_line_cnt);
+        if(i >= slc_line_boundary)
+        {
+            QTAILQ_INSERT_TAIL(&lm->free_line_list, line, entry);
+            lm->free_line_cnt++;
+        }
+        else if(i < slc_line_boundary)
+        {
+            QTAILQ_INSERT_TAIL(&lm->slc_free_line_list, line, entry);
+            lm->slc_free_line_cnt++;
+        }
+        else
+        {
+            printf("invalid line id!(%d)\n", i);
+        }
     }
-    ftl_assert(lm->free_line_cnt == lm->tt_lines);
+    ftl_assert((lm->free_line_cnt + lm->slc_free_line_cnt) == lm->tt_lines);
     lm->victim_line_cnt = 0;
     lm->full_line_cnt = 0;
+    lm->slc_victim_line_cnt = 0;
+    lm->slc_full_line_cnt = 0;
 
     /* initialize write pointer, this is how we allocate new pages for writes */
     h_log_admin("initialize write pointer\n");
@@ -1297,6 +1277,8 @@ static uint16_t nvme_zconfig_control(FemuCtrl *n, NvmeCmd *cmd)
 
         tbl++;
     }
+
+    pthread_mutex_init(&lock_slc_nand, NULL);
 
     pthread_mutex_init(&lock_slc_wp, NULL);
     pthread_mutex_lock(&lock_slc_wp);
