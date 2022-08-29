@@ -811,7 +811,7 @@ static void bb_init_ctrl_str(FemuCtrl *n)
 
     static int fsid_zns = 0;
     const char *zns_mn = "FEMU ZNS-SSD Controller";
-    const char *zns_sn = "vZNS_2.3";
+    const char *zns_sn = "vZNS_4k";
 
     nvme_set_ctrl_name(n, zns_mn, zns_sn, &fsid_zns);
 

@@ -451,8 +451,8 @@ static void check_params(struct ssdparams *spp)
 void ssd_init_params(FemuCtrl *n, struct ssdparams *spp)
 {
     spp->secsz = 512;
-    spp->secs_per_pg = 32; // 16k per pg
-    spp->pgs_per_blk = 512; // 2mb per blk
+    spp->secs_per_pg = 8; // 4k per pg
+    spp->pgs_per_blk = 2048; // 2mb per blk
     spp->blks_per_pl = 4096; // number of total lines
     spp->blks_per_pl += (2*n->num_zones)+1;
     spp->pls_per_lun = 1;
@@ -1680,7 +1680,7 @@ static uint64_t slc_write(struct ssd *ssd, NvmeRequest *req)
         ppa.g.pl = wpp->pl;
         pthread_mutex_unlock(&lock_slc_nand);
         ftl_assert(ppa.g.pl == 0);
-        //printf("slc write ch%d lun%d pl%d blk%d pg:%d\n", ppa.g.ch, ppa.g.lun, ppa.g.pl, ppa.g.blk, ppa.g.pg);
+        printf("slc write ch%d lun%d pl%d blk%d pg:%d\n", ppa.g.ch, ppa.g.lun, ppa.g.pl, ppa.g.blk, ppa.g.pg);
 
         pba.g.blk = ppa.g.blk;
         pba.g.ch = ppa.g.ch;
