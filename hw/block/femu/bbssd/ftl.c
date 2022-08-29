@@ -1680,7 +1680,7 @@ static uint64_t slc_write(struct ssd *ssd, NvmeRequest *req)
         ppa.g.pl = wpp->pl;
         pthread_mutex_unlock(&lock_slc_nand);
         ftl_assert(ppa.g.pl == 0);
-        printf("slc write ch%d lun%d pl%d blk%d pg:%d\n", ppa.g.ch, ppa.g.lun, ppa.g.pl, ppa.g.blk, ppa.g.pg);
+        //printf("slc write ch%d lun%d pl%d blk%d pg:%d\n", ppa.g.ch, ppa.g.lun, ppa.g.pl, ppa.g.blk, ppa.g.pg);
 
         pba.g.blk = ppa.g.blk;
         pba.g.ch = ppa.g.ch;
