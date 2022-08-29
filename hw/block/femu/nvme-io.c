@@ -448,11 +448,12 @@ static void nvme_process_sq_io(void *opaque, int index_poller)
             //     zone_index++;
             //     zone++;
             // }
-            uint64_t line_cap = (slc_line_boundary*(uint32_t)spp->secs_per_pg*(uint32_t)spp->pgs_per_blk*(uint32_t)spp->nchs*(uint32_t)spp->luns_per_ch);// - 0x20000;
+            uint64_t line_size = (uint32_t)spp->secs_per_pg*(uint32_t)spp->pgs_per_blk*(uint32_t)spp->nchs*(uint32_t)spp->luns_per_ch;
+            uint64_t line_cap = slc_line_boundary*line_size;
 if(H_TEST_LOG && cmd.opcode == NVME_CMD_WRITE) printf("p1 ");
             pthread_mutex_lock(&lock_slc_wp);
             if( cmd.opcode == NVME_CMD_ZONE_APPEND || slc_line_boundary == 0
-                || ( ((slc_wp + cmd.cdw12 + 1)) >= (line_cap - (2*n->num_zones)) )
+                || ( ((slc_wp + cmd.cdw12 + 1)) >= (line_cap - (2*n->num_zones) - line_size) )
                 || IN_SLC_GC )
             {
                 //* SLC FULL, to Overprovisioning?
@@ -462,7 +463,7 @@ if(H_TEST_LOG && cmd.opcode == NVME_CMD_WRITE) printf("p1 ");
 
                 //if((slc_wp + cmd.cdw12) < (zone->d.zslba + zone->d.zcap))
                 if( cmd.opcode != NVME_CMD_ZONE_APPEND
-                     && (slc_line_boundary > 0) && ((slc_wp + cmd.cdw12 + 1)) < line_cap && !IN_SLC_GC )
+                     && (slc_line_boundary > 0) && ((slc_wp + cmd.cdw12 + 1)) < (line_cap-line_size) && !IN_SLC_GC )
                 {
                     h_log_provision("Over-provisioning? zone[%ld] SLC Data: %ld, DataRemain=%ld\n",
                         ((req->slba)/n->zone_capacity), tbl->num_slc_data, tbl->num_slc_data%3);
