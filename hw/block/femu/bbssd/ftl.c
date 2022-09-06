@@ -412,8 +412,8 @@ static void slc_advance_write_pointer(struct ssd *ssd)
     //printf("advance slc_wp: 0x%lx, wpp ch[%d] lun[%d] pg[%d] blk[%d] curline[%d]   ",
       //  slc_wp,wpp->ch, wpp->lun, wpp->pg, wpp->blk, wpp->curline->id);
 
-    if(H_TEST_LOG && slc_wp >= 0x5c0000) h_log_nand_verbose("slc_wp: 0x%lx, wpp ch[%d] lun[%d] pg[%d] blk[%d] curline[%d]\n",
-        slc_wp,wpp->ch, wpp->lun, wpp->pg, wpp->blk, wpp->curline->id);
+    //if(H_TEST_LOG && slc_wp >= 0x5c0000) h_log_nand_verbose("slc_wp: 0x%lx, wpp ch[%d] lun[%d] pg[%d] blk[%d] curline[%d]\n",
+     //   slc_wp,wpp->ch, wpp->lun, wpp->pg, wpp->blk, wpp->curline->id);
 }
 
 
@@ -1758,7 +1758,7 @@ static void *ftl_thread(void *arg)
             if (!ssd->to_ftl[i] || !femu_ring_count(ssd->to_ftl[i]))
                 continue;
 
-if(H_TEST_LOG && req->cmd.opcode ==  NVME_CMD_WRITE) printf("femuDEQ%d,%d ",i, n->num_poller);
+//if(H_TEST_LOG && req->cmd.opcode ==  NVME_CMD_WRITE) printf("femuDEQ%d,%d ",i, n->num_poller);
             rc = femu_ring_dequeue(ssd->to_ftl[i], (void *)&req, 1);
             if (rc != 1) {
                 printf("FEMU: FTL to_ftl dequeue failed\n");
@@ -1811,7 +1811,7 @@ if(H_TEST_LOG && req->cmd.opcode ==  NVME_CMD_WRITE) printf("femuDEQ%d,%d ",i, n
 
             req->reqlat = lat;
             req->expire_time += lat;
-if(H_TEST_LOG && req->cmd.opcode ==  NVME_CMD_WRITE) printf("femu enqueue ");
+//if(H_TEST_LOG && req->cmd.opcode ==  NVME_CMD_WRITE) printf("femu enqueue ");
             rc = femu_ring_enqueue(ssd->to_poller[i], (void *)&req, 1);
             if (rc != 1) {
                 ftl_err("FTL to_poller enqueue failed\n");
@@ -1821,7 +1821,7 @@ if(H_TEST_LOG && req->cmd.opcode ==  NVME_CMD_WRITE) printf("femu enqueue ");
             if (should_gc(ssd)) {
                 do_gc(ssd, false);
             }
-            if(H_TEST_LOG && req->cmd.opcode ==  NVME_CMD_WRITE) printf("endline\n");
+            //if(H_TEST_LOG && req->cmd.opcode ==  NVME_CMD_WRITE) printf("endline\n");
         }
 
         if( false && slc_line_boundary > 0
@@ -1838,4 +1838,3 @@ if(H_TEST_LOG && req->cmd.opcode ==  NVME_CMD_WRITE) printf("femu enqueue ");
 
     return NULL;
 }
-

@@ -392,6 +392,7 @@ static void nvme_process_sq_io(void *opaque, int index_poller)
     NvmeCmd cmd;
     NvmeRequest *req;
     int processed = 0;
+    int randvalue = 0;
 
     nvme_update_sq_tail(sq);
     while (!(nvme_sq_empty(sq))) {
@@ -417,7 +418,6 @@ static void nvme_process_sq_io(void *opaque, int index_poller)
        //* by HH
         if(cmd.opcode == NVME_CMD_WRITE ||cmd.opcode == NVME_CMD_ZONE_APPEND)
         {
-            if(H_TEST_LOG && cmd.opcode == NVME_CMD_WRITE) printf("write! ");
             req->slba = cmd.cdw10 | ((uint64_t)cmd.cdw11<<32);
             req->cmd.cdw10 = req->slba & 0xFFFFFFFF;
             req->cmd.cdw11 = req->slba >> 32;
@@ -450,9 +450,11 @@ static void nvme_process_sq_io(void *opaque, int index_poller)
             // }
             uint64_t line_size = (uint32_t)spp->secs_per_pg*(uint32_t)spp->pgs_per_blk*(uint32_t)spp->nchs*(uint32_t)spp->luns_per_ch;
             uint64_t line_cap = slc_line_boundary*line_size;
-if(H_TEST_LOG && cmd.opcode == NVME_CMD_WRITE) printf("p1 ");
             pthread_mutex_lock(&lock_slc_wp);
-            if( cmd.opcode == NVME_CMD_ZONE_APPEND || slc_line_boundary == 0
+
+            if(H_TEST_LOG) randvalue = rand()%10;
+
+            if( (randvalue > 3) || cmd.opcode == NVME_CMD_ZONE_APPEND || slc_line_boundary == 0
                 || ( ((slc_wp + cmd.cdw12 + 1)) >= (line_cap - (2*n->num_zones) - line_size) )
                 || IN_SLC_GC )
             {
@@ -462,7 +464,7 @@ if(H_TEST_LOG && cmd.opcode == NVME_CMD_WRITE) printf("p1 ");
                 //slc_mapping *map_tbl = tbl->slcmap;
 
                 //if((slc_wp + cmd.cdw12) < (zone->d.zslba + zone->d.zcap))
-                if( cmd.opcode != NVME_CMD_ZONE_APPEND
+                if( (randvalue < 4) && cmd.opcode != NVME_CMD_ZONE_APPEND
                      && (slc_line_boundary > 0) && ((slc_wp + cmd.cdw12 + 1)) < (line_cap-line_size) && !IN_SLC_GC )
                 {
                     h_log_provision("Over-provisioning? zone[%ld] SLC Data: %ld, DataRemain=%ld\n",
@@ -536,33 +538,30 @@ if(H_TEST_LOG && cmd.opcode == NVME_CMD_WRITE) printf("p1 ");
                 }
                 else
                 {
+                    //if(randvalue > 3) printf("cold data! to TLC\n");
                     pthread_mutex_unlock(&lock_slc_wp);
                     h_log_provision("Cannot write to SLC region\n");
                 }
             }
             else
             {
-                if(H_TEST_LOG && cmd.opcode == NVME_CMD_WRITE) printf("p2 ");
                 req_slba = req->slba;
                 
                 //cmd.cdw10 = slc_wp & 0xFFFFFFFF;
                 //cmd.cdw11 = slc_wp >> 32;
 
                 slc_wp += cmd.cdw12+1; 
-                if(H_TEST_LOG && cmd.opcode == NVME_CMD_WRITE) printf("p2.1 ");
                 pthread_mutex_unlock(&lock_slc_wp);
-                if(H_TEST_LOG && cmd.opcode == NVME_CMD_WRITE) printf("p2.2 ");
 
                 req->cmd.cdw15 = 0x89; //slc flag
 
                 ori_zone->d.wp += cmd.cdw12 + 1;
-if(H_TEST_LOG && cmd.opcode == NVME_CMD_WRITE) printf("p2.21 ");
+
                 //* by HH: ori-zone open
                 zns_auto_transition_zone(n->namespaces, 4);
-                if(H_TEST_LOG && cmd.opcode == NVME_CMD_WRITE) printf("p2.22 ");
                 zns_advance_zone_wp(n->namespaces, ori_zone, cmd.cdw12+1, 2);
                 //*
-if(H_TEST_LOG && cmd.opcode == NVME_CMD_WRITE) printf("p2.3 ");
+
                 if (ori_zone->d.wp == zns_zone_wr_boundary(ori_zone))
                 {
                     switch (zns_get_zone_state(ori_zone))
@@ -573,7 +572,7 @@ if(H_TEST_LOG && cmd.opcode == NVME_CMD_WRITE) printf("p2.3 ");
                         pthread_mutex_lock(&lock_nr_open);
                         zns_aor_dec_open_debug(n->namespaces, 4);                        
                         pthread_mutex_unlock(&lock_nr_open);
-                        if(H_TEST_LOG && cmd.opcode == NVME_CMD_WRITE) printf("p2.4 ");
+
 
                         /* fall through */
                     case NVME_ZONE_STATE_CLOSED:
@@ -593,20 +592,17 @@ if(H_TEST_LOG && cmd.opcode == NVME_CMD_WRITE) printf("p2.3 ");
                         assert(false);
                     }
                 }
-                if(H_TEST_LOG && cmd.opcode == NVME_CMD_WRITE) printf("p3 ");
 
                 req->slba = cmd.cdw10 | ((uint64_t)cmd.cdw11<<32);
                 req->cmd.cdw10 = cmd.cdw10;
                 req->cmd.cdw11 = cmd.cdw11;
 
                 set_mapslc_ent(ssd, ((req_slba)/n->zone_capacity), req->slba, cmd.cdw12, req_slba);
-                if(H_TEST_LOG && cmd.opcode == NVME_CMD_WRITE) printf("p4 ");
             }
 
         }
         else if(cmd.opcode == NVME_CMD_READ)
         {
-            if(H_TEST_LOG) printf("process sq io read!\n");
             //cmd.cdw10 += TLC_START_LBA & 0xFFFFFFFF;
             //cmd.cdw11 += TLC_START_LBA >> 32;
 
@@ -647,11 +643,9 @@ if(H_TEST_LOG && cmd.opcode == NVME_CMD_WRITE) printf("p2.3 ");
         if (n->print_log) {
             femu_debug("%s,cid:%d\n", __func__, cmd.cid);
         }
-        if(H_TEST_LOG && cmd.opcode == NVME_CMD_WRITE) printf("nvme_io_cmd ");
         status = nvme_io_cmd(n, &cmd, req);
         if (1 && status == NVME_SUCCESS) {
             req->status = status;
-            if(H_TEST_LOG && cmd.opcode == NVME_CMD_WRITE) printf("femuenq ");
             int rc = femu_ring_enqueue(n->to_ftl[index_poller], (void *)&req, 1);
             if (rc != 1) {
                 femu_err("enqueue failed, ret=%d\n", rc);
