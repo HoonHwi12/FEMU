@@ -482,8 +482,8 @@ if(H_TEST_LOG && cmd.opcode == NVME_CMD_WRITE) printf("p1 ");
 
                         req_slba = req->slba;
 
-                        cmd.cdw10 = slc_wp & 0xFFFFFFFF;
-                        cmd.cdw11 = slc_wp >> 32;
+                        //cmd.cdw10 = slc_wp & 0xFFFFFFFF;
+                        //cmd.cdw11 = slc_wp >> 32;
 
                         slc_wp += cmd.cdw12+1;
                         pthread_mutex_unlock(&lock_slc_wp);
@@ -545,8 +545,8 @@ if(H_TEST_LOG && cmd.opcode == NVME_CMD_WRITE) printf("p1 ");
                 if(H_TEST_LOG && cmd.opcode == NVME_CMD_WRITE) printf("p2 ");
                 req_slba = req->slba;
                 
-                cmd.cdw10 = slc_wp & 0xFFFFFFFF;
-                cmd.cdw11 = slc_wp >> 32;
+                //cmd.cdw10 = slc_wp & 0xFFFFFFFF;
+                //cmd.cdw11 = slc_wp >> 32;
 
                 slc_wp += cmd.cdw12+1; 
                 if(H_TEST_LOG && cmd.opcode == NVME_CMD_WRITE) printf("p2.1 ");
