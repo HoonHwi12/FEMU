@@ -327,7 +327,7 @@ static void ssd_advance_write_pointer(struct ssd *ssd, uint32_t zone_index, bool
 
 static void slc_advance_write_pointer(struct ssd *ssd)
 {
-    pthread_mutex_lock(&lock_slc_nand);
+    //pthread_mutex_lock(&lock_slc_nand);
     struct write_pointer *wpp = &ssd->wp;
     struct ssdparams *spp = &ssd->sp;
     struct line_mgmt *lm = &ssd->lm;
@@ -408,7 +408,7 @@ static void slc_advance_write_pointer(struct ssd *ssd)
             }
         }
     }
-    pthread_mutex_unlock(&lock_slc_nand);
+    //pthread_mutex_unlock(&lock_slc_nand);
     //printf("advance slc_wp: 0x%lx, wpp ch[%d] lun[%d] pg[%d] blk[%d] curline[%d]   ",
       //  slc_wp,wpp->ch, wpp->lun, wpp->pg, wpp->blk, wpp->curline->id);
 
@@ -1385,9 +1385,9 @@ static int do_slc_gc(FemuCtrl *n, struct ssd *ssd)
         if (!gc_line) {
             printf("no GC line selected!! err\n");
 
-            pthread_mutex_lock(&lock_slc_wp);
+           // pthread_mutex_lock(&lock_slc_wp);
             slc_wp = 0;  
-            pthread_mutex_unlock(&lock_slc_wp);
+            //pthread_mutex_unlock(&lock_slc_wp);
 
             return -1;
         }
@@ -1420,9 +1420,9 @@ static int do_slc_gc(FemuCtrl *n, struct ssd *ssd)
         QTAILQ_INSERT_TAIL(&lm->slc_free_line_list, gc_line, entry);
     }
 
-    pthread_mutex_lock(&lock_slc_wp);
+    //pthread_mutex_lock(&lock_slc_wp);
     slc_wp = 0;
-    pthread_mutex_unlock(&lock_slc_wp);
+    //pthread_mutex_unlock(&lock_slc_wp);
 
     IN_SLC_GC = false;
 
@@ -1671,14 +1671,14 @@ static uint64_t slc_write(struct ssd *ssd, NvmeRequest *req)
         if(false) ppa = get_new_page(ssd);
 
         //printf("getpage ");
-        pthread_mutex_lock(&lock_slc_nand);
+       // pthread_mutex_lock(&lock_slc_nand);
         ppa.ppa = wpp->pg;
         ppa.g.ch = wpp->ch;
         ppa.g.lun = wpp->lun;
         ppa.g.pg = wpp->pg;
         ppa.g.blk = wpp->blk;
         ppa.g.pl = wpp->pl;
-        pthread_mutex_unlock(&lock_slc_nand);
+        //pthread_mutex_unlock(&lock_slc_nand);
         ftl_assert(ppa.g.pl == 0);
         //printf("slc write ch%d lun%d pl%d blk%d pg:%d\n", ppa.g.ch, ppa.g.lun, ppa.g.pl, ppa.g.blk, ppa.g.pg);
 
