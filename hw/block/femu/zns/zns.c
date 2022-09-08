@@ -21,7 +21,7 @@ uint64_t slc_line_boundary;
 pthread_mutex_t lock_nr_open;
 pthread_mutex_t lock_nr_active;
 pthread_mutex_t lock_slc_wp;
-pthread_mutex_t lock_slc_nand;
+//pthread_mutex_t lock_slc_nand;
 uint64_t        slc_wp;
 //*
 

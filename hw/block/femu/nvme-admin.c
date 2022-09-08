@@ -1278,7 +1278,7 @@ static uint16_t nvme_zconfig_control(FemuCtrl *n, NvmeCmd *cmd)
         tbl++;
     }
 
-    pthread_mutex_init(&lock_slc_nand, NULL);
+    //pthread_mutex_init(&lock_slc_nand, NULL);
 
     pthread_mutex_init(&lock_slc_wp, NULL);
     pthread_mutex_lock(&lock_slc_wp);
