@@ -103,7 +103,7 @@ static void nvme_write_bar(FemuCtrl *n, hwaddr offset, uint64_t data, unsigned s
             }
         } else if (!NVME_CC_EN(data) && NVME_CC_EN(n->bar.cc)) {
             printf("nvme clear ctrl!\n");
-            pthread_mutex_init(&lock_slc_wp, NULL);
+            //pthread_mutex_init(&lock_slc_wp, NULL);
             pthread_mutex_init(&lock_nr_open, NULL);
             pthread_mutex_init(&lock_nr_active, NULL);
 

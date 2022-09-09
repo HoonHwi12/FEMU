@@ -68,7 +68,7 @@ extern uint64_t slc_line_boundary;
 
 extern pthread_mutex_t lock_nr_open;
 extern pthread_mutex_t lock_nr_active;
-extern pthread_mutex_t lock_slc_wp;
+//extern pthread_mutex_t lock_slc_wp;
 //extern pthread_mutex_t lock_slc_nand;
 extern uint64_t        slc_wp;
 

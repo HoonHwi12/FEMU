@@ -1280,10 +1280,10 @@ static uint16_t nvme_zconfig_control(FemuCtrl *n, NvmeCmd *cmd)
 
     //pthread_mutex_init(&lock_slc_nand, NULL);
 
-    pthread_mutex_init(&lock_slc_wp, NULL);
-    pthread_mutex_lock(&lock_slc_wp);
+    //pthread_mutex_init(&lock_slc_wp, NULL);
+    //pthread_mutex_lock(&lock_slc_wp);
     slc_wp = 0;  
-    pthread_mutex_unlock(&lock_slc_wp);
+    //pthread_mutex_unlock(&lock_slc_wp);
 
     h_log_admin("ssd_init complete\n");
     //* ssd init **************************************************

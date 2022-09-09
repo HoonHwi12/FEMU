@@ -1385,9 +1385,9 @@ static int do_slc_gc(FemuCtrl *n, struct ssd *ssd)
         if (!gc_line) {
             printf("no GC line selected!! err\n");
 
-            pthread_mutex_lock(&lock_slc_wp);
+           // pthread_mutex_lock(&lock_slc_wp);
             slc_wp = 0;  
-            pthread_mutex_unlock(&lock_slc_wp);
+            //pthread_mutex_unlock(&lock_slc_wp);
 
             return -1;
         }
@@ -1420,9 +1420,9 @@ static int do_slc_gc(FemuCtrl *n, struct ssd *ssd)
         QTAILQ_INSERT_TAIL(&lm->slc_free_line_list, gc_line, entry);
     }
 
-    pthread_mutex_lock(&lock_slc_wp);
+    //pthread_mutex_lock(&lock_slc_wp);
     slc_wp = 0;
-    pthread_mutex_unlock(&lock_slc_wp);
+    //pthread_mutex_unlock(&lock_slc_wp);
 
     IN_SLC_GC = false;
 
