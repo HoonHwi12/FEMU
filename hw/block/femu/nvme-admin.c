@@ -1308,14 +1308,14 @@ static uint16_t nvme_zconfig_control(FemuCtrl *n, NvmeCmd *cmd)
     QTAILQ_INIT(&n->closed_zones);
     QTAILQ_INIT(&n->full_zones);
 
-    pthread_mutex_init(&lock_nr_active, NULL);
-    pthread_mutex_init(&lock_nr_open, NULL);
-    pthread_mutex_lock(&lock_nr_active);
-    pthread_mutex_lock(&lock_nr_open);
+    //pthread_mutex_init(&lock_nr_active, NULL);
+    //pthread_mutex_init(&lock_nr_open, NULL);
+    //pthread_mutex_lock(&lock_nr_active);
+    //pthread_mutex_lock(&lock_nr_open);
     n->nr_active_zones = 0;
     n->nr_open_zones = 0;
-    pthread_mutex_unlock(&lock_nr_active);
-    pthread_mutex_unlock(&lock_nr_open);
+    //pthread_mutex_unlock(&lock_nr_active);
+    //pthread_mutex_unlock(&lock_nr_open);
 
     zone = n->zone_array;
 

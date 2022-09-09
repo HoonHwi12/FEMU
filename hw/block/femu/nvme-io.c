@@ -73,7 +73,7 @@ static void zns_auto_transition_zone(NvmeNamespace *ns, int debug)
     FemuCtrl *n = ns->ctrl;
     NvmeZone *zone;
 
-    pthread_mutex_lock(&lock_nr_open);
+    //pthread_mutex_lock(&lock_nr_open);
     if (n->max_open_zones &&
         n->nr_open_zones == n->max_open_zones) {
         zone = QTAILQ_FIRST(&n->imp_open_zones);
@@ -88,7 +88,7 @@ static void zns_auto_transition_zone(NvmeNamespace *ns, int debug)
             //h_log_zone("nr_open--(%d), zonewp(0x%lx) %d\n", ns->ctrl->nr_open_zones, zone->w_ptr, debug);
         }
     }
-    pthread_mutex_unlock(&lock_nr_open);
+    //pthread_mutex_unlock(&lock_nr_open);
 
 }
 
@@ -319,9 +319,9 @@ static void zns_finalize_zoned_write(NvmeNamespace *ns, NvmeRequest *req,
         switch (zns_get_zone_state(zone)) {
         case NVME_ZONE_STATE_IMPLICITLY_OPEN:
         case NVME_ZONE_STATE_EXPLICITLY_OPEN:
-            pthread_mutex_lock(&lock_nr_open);
+            //pthread_mutex_lock(&lock_nr_open);
             zns_aor_dec_open_debug(ns, 2);
-            pthread_mutex_unlock(&lock_nr_open);            
+            //pthread_mutex_unlock(&lock_nr_open);            
             //h_log_zone("write slc: nr_open--(%d)\n", ns->ctrl->nr_open_zones);
 
             /* fall through */
@@ -507,9 +507,9 @@ static void nvme_process_sq_io(void *opaque, int index_poller)
                             {
                             case NVME_ZONE_STATE_IMPLICITLY_OPEN:
                             case NVME_ZONE_STATE_EXPLICITLY_OPEN:
-                                pthread_mutex_lock(&lock_nr_open);
+                                //pthread_mutex_lock(&lock_nr_open);
                                 zns_aor_dec_open_debug(n->namespaces, 3);
-                                pthread_mutex_unlock(&lock_nr_open);
+                                //pthread_mutex_unlock(&lock_nr_open);
                                 //h_log_zone("write slc: nr_open--, ori_zone->d.wp(0x%lx)\n",ori_zone->d.wp);
 
                                 /* fall through */
@@ -569,9 +569,9 @@ static void nvme_process_sq_io(void *opaque, int index_poller)
                     case NVME_ZONE_STATE_IMPLICITLY_OPEN:
                     case NVME_ZONE_STATE_EXPLICITLY_OPEN:
                         //h_log_zone("write slc: nr_open--, ori_zone->d.wp(0x%lx)\n",ori_zone->d.wp);
-                        pthread_mutex_lock(&lock_nr_open);
+                        //pthread_mutex_lock(&lock_nr_open);
                         zns_aor_dec_open_debug(n->namespaces, 4);                        
-                        pthread_mutex_unlock(&lock_nr_open);
+                        //pthread_mutex_unlock(&lock_nr_open);
 
 
                         /* fall through */

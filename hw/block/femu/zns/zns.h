@@ -66,8 +66,8 @@ extern struct w_pointer wpzone;
 //extern struct line_mgmt slm;
 extern uint64_t slc_line_boundary;
 
-extern pthread_mutex_t lock_nr_open;
-extern pthread_mutex_t lock_nr_active;
+//extern pthread_mutex_t lock_nr_open;
+//extern pthread_mutex_t lock_nr_active;
 //extern pthread_mutex_t lock_slc_wp;
 //extern pthread_mutex_t lock_slc_nand;
 extern uint64_t        slc_wp;
@@ -328,10 +328,10 @@ static inline void zns_aor_inc_open(NvmeNamespace *ns)
         //     usleep(1000);
         // }
         
-        pthread_mutex_lock(&lock_nr_open);
+        //pthread_mutex_lock(&lock_nr_open);
         n->nr_open_zones++;
         h_log_zone("nr_open++(%d)\n", n->nr_open_zones);
-        pthread_mutex_unlock(&lock_nr_open);
+        //pthread_mutex_unlock(&lock_nr_open);
         //printf("nr_open++(%d)\n", ns->ctrl->nr_open_zones);
 
         //* by HH: decline
@@ -398,10 +398,10 @@ static inline void zns_aor_dec_open(NvmeNamespace *ns)
 
         assert(n->nr_open_zones > 0);
 
-        pthread_mutex_lock(&lock_nr_open);
+        //pthread_mutex_lock(&lock_nr_open);
         n->nr_open_zones--;
         h_log_zone("nr_open--(%d)\n", n->nr_open_zones);
-        pthread_mutex_unlock(&lock_nr_open);
+        //pthread_mutex_unlock(&lock_nr_open);
     }
     assert(n->nr_open_zones >= 0);
 }
@@ -414,7 +414,7 @@ static inline void zns_aor_inc_active(NvmeNamespace *ns)
         //pthread_mutex_lock(&lock_nr_active);
         n->nr_active_zones++;
         h_log_zone("nr_active++(%d)\n", n->nr_active_zones);
-        pthread_mutex_unlock(&lock_nr_active);
+        //pthread_mutex_unlock(&lock_nr_active);
         assert(n->nr_active_zones <= n->max_active_zones);
     }
 }
@@ -424,9 +424,9 @@ static inline void zns_aor_dec_active(NvmeNamespace *ns)
     FemuCtrl *n = ns->ctrl;
     if (n->max_active_zones) {
         assert(n->nr_active_zones > 0);
-        pthread_mutex_lock(&lock_nr_active);
+       // pthread_mutex_lock(&lock_nr_active);
         n->nr_active_zones--;
-        pthread_mutex_unlock(&lock_nr_active);
+       // pthread_mutex_unlock(&lock_nr_active);
         h_log_zone("nr_active--(%d)\n", n->nr_active_zones);
 
         //* HH: wait
