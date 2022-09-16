@@ -490,8 +490,8 @@ static void nvme_process_sq_io(void *opaque, int index_poller)
 
                         req_slba = req->slba;
 
-                        //cmd.cdw10 = slc_wp & 0xFFFFFFFF;
-                        //cmd.cdw11 = slc_wp >> 32;
+                        cmd.cdw10 = slc_wp & 0xFFFFFFFF;
+                        cmd.cdw11 = slc_wp >> 32;
 
                         slc_wp += cmd.cdw12+1;
                         pthread_mutex_unlock(&lock_slc_wp);
@@ -553,8 +553,8 @@ static void nvme_process_sq_io(void *opaque, int index_poller)
             {
                 req_slba = req->slba;
                 
-                //cmd.cdw10 = slc_wp & 0xFFFFFFFF;
-                //cmd.cdw11 = slc_wp >> 32;
+                cmd.cdw10 = slc_wp & 0xFFFFFFFF;
+                cmd.cdw11 = slc_wp >> 32;
 
                 slc_wp += cmd.cdw12+1; 
                 pthread_mutex_unlock(&lock_slc_wp);
