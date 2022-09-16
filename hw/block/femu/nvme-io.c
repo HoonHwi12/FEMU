@@ -452,7 +452,13 @@ static void nvme_process_sq_io(void *opaque, int index_poller)
             uint64_t line_cap = slc_line_boundary*line_size;
             pthread_mutex_lock(&lock_slc_wp);
 
-            if(H_TEST_LOG) randvalue = rand()%10;
+            if(H_TEST_LOG)
+            {
+                if(req->slba > (100*n->zone_array->d.zcap) )
+                {
+                    randvalue = 5;
+                }
+            }
 
             if( (randvalue > 3) || cmd.opcode == NVME_CMD_ZONE_APPEND || slc_line_boundary == 0
                 || ( ((slc_wp + cmd.cdw12 + 1)) >= (line_cap - (2*n->num_zones) - line_size) )
