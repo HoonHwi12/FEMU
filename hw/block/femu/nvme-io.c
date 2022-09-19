@@ -454,7 +454,7 @@ static void nvme_process_sq_io(void *opaque, int index_poller)
 
             if(H_TEST_LOG)
             {
-                if(req->slba > (100*n->zone_array->d.zcap) )
+                if(req->slba > (300*n->zone_array->d.zcap) )
                 {
                     randvalue = 5;
                 }
